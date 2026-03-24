@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Compescal | Autorização</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div id="view-login" class="login-container">
+        <div class="login-card">
+            <img src="Logo Compescal.jpg" alt="Compescal Logo" class="logo" onerror="this.style.display='none'">
+            <h2>Controle de Acessos</h2>
+            <form id="form-login">
+                <div class="input-group"><label>Usuário</label><input type="text" id="login-user" required></div>
+                <div class="input-group"><label>Senha</label><input type="password" id="login-senha" required></div>
+                <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+                <div class="version-control">Versão: v1.4.0 Max</div>
+            </form>
+        </div>
+    </div>
+
+    <div id="view-app" class="app-container hidden">
+        <header class="topbar">
+            <div class="brand"><i class="ph ph-shield-check"></i> Compescal</div>
+            <div class="user-info">
+                <span id="user-name">Usuário</span>
+                <button id="btn-logout" class="btn-icon" title="Sair"><i class="ph ph-sign-out"></i></button>
+            </div>
+        </header>
+
+        <main class="content">
+            <section id="tela-lider" class="view-section hidden">
+                <div class="card">
+                    <h3><i class="ph ph-file-plus"></i> Nova Autorização</h3>
+                    
+                    <div id="selecao-direcao" style="display: flex; gap: 10px; margin-bottom: 1.5rem;">
+                        <button class="btn btn-danger" style="flex:1; padding: 1.5rem 1rem;" onclick="iniciarFormulario('Saída')"><i class="ph ph-sign-out" style="font-size:1.5rem;"></i> Saída</button>
+                        <button class="btn btn-primary" style="flex:1; padding: 1.5rem 1rem;" onclick="iniciarFormulario('Entrada')"><i class="ph ph-sign-in" style="font-size:1.5rem;"></i> Entrada</button>
+                    </div>
+
+                    <form id="form-autorizacao" class="hidden">
+                        <h4 id="titulo-form" style="margin-bottom: 1rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Preenchendo...</h4>
+                        
+                        <div class="input-group">
+                            <label>Matrícula (Código)</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="number" id="mat-colaborador" required placeholder="Digite e clique na lupa ->">
+                                <button type="button" id="btn-buscar-mat" class="btn btn-secondary"><i class="ph ph-magnifying-glass"></i></button>
+                            </div>
+                            <small id="aviso-mat" class="text-danger hidden">Buscando...</small>
+                        </div>
+                        <div class="input-group">
+                            <label>Nome Completo</label>
+                            <input type="text" id="nome-colaborador" readonly class="readonly">
+                        </div>
+                        <div class="input-group">
+                            <label>Motivo</label>
+                            <select id="motivo-saida" required><option value="">Selecione...</option></select>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="input-group">
+                                <label id="label-prev-acao">Prev. Saída</label>
+                                <input type="datetime-local" id="prev-acao" required>
+                            </div>
+                            <div class="input-group" id="box-vai-retornar">
+                                <label>Vai Retornar?</label>
+                                <select id="vai-retornar" onchange="togglePrevisaoRetorno()">
+                                    <option value="Não">Não</option>
+                                    <option value="Sim">Sim</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="input-group hidden" id="box-prev-retorno">
+                            <label>Prev. Retorno</label>
+                            <input type="datetime-local" id="prev-retorno">
+                        </div>
+
+                        <div class="input-group">
+                            <label>Observação (Opcional)</label>
+                            <textarea id="obs-saida" rows="2"></textarea>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-block mb-1" onclick="voltarSelecao()"><i class="ph ph-arrow-left"></i> Voltar</button>
+                        <button type="submit" class="btn btn-success btn-block" id="btn-submit-form">Autorizar</button>
+                    </form>
+                </div>
+            </section>
+
+            <section id="tela-portaria" class="view-section hidden">
+                <button class="btn btn-secondary btn-block mb-1" onclick="carregarPortaria()"><i class="ph ph-arrows-clockwise"></i> Atualizar Tela</button>
+                
+                <div class="card" style="border-top: 4px solid var(--accent);">
+                    <h3 class="text-danger"><i class="ph ph-sign-out"></i> Aguardando Liberação de Saída</h3>
+                    <div id="lista-portaria-saida" class="list-container"></div>
+                </div>
+
+                <div class="card" style="border-top: 4px solid var(--primary);">
+                    <h3 class="text-primary"><i class="ph ph-sign-in"></i> Aguardando Liberação de Entrada</h3>
+                    <div id="lista-portaria-entrada" class="list-container"></div>
+                </div>
+
+                <div class="card" style="border-top: 4px solid var(--warning);">
+                    <h3 style="color: var(--warning);"><i class="ph ph-clock-counter-clockwise"></i> Aguardando Retorno</h3>
+                    <div id="lista-portaria-retorno" class="list-container"></div>
+                </div>
+
+                <div class="card" style="border-top: 4px solid var(--success);">
+                    <h3 class="text-success"><i class="ph ph-check-circle"></i> Histórico de Hoje (Concluídos)</h3>
+                    <div id="lista-historico-portaria" class="list-container"></div>
+                </div>
+            </section>
+
+            <section id="tela-rh" class="view-section hidden">
+                <button class="btn btn-secondary btn-block mb-1" onclick="iniciarRH()"><i class="ph ph-arrows-clockwise"></i> Atualizar Tela</button>
+                
+                <div class="kpi-grid">
+                    <div class="kpi-card"><span>Autorizações Hoje</span><h3 id="kpi-hoje">0</h3></div>
+                    <div class="kpi-card highlight"><span>Autorizações no Mês</span><h3 id="kpi-mes">0</h3></div>
+                </div>
+
+                <div class="card mt-1">
+                    <h3><i class="ph ph-trophy"></i> Ranking do Mês (Mais Saídas)</h3>
+                    <ul id="lista-ranking" class="ranking-list"></ul>
+                </div>
+
+                <div class="card mt-1">
+                    <h3><i class="ph ph-funnel"></i> Relatórios Avançados</h3>
+                    <div class="filter-group">
+                        <div class="input-group"><label>De (Data):</label><input type="date" id="filtro-data-inicio"></div>
+                        <div class="input-group"><label>Até (Data):</label><input type="date" id="filtro-data-fim"></div>
+                        <div class="input-group" style="grid-column: 1 / -1;">
+                            <label>Tipo de Relatório:</label>
+                            <select id="tipo-relatorio" onchange="toggleFiltrosRH()">
+                                <option value="geral">Relatório Geral (Todos)</option>
+                                <option value="lider">Filtro por Líder</option>
+                                <option value="colaborador">Filtro por Colaborador</option>
+                                <option value="motivo">Filtro por Motivo</option>
+                                <option value="nao_retornou">Relatório: Colaborador Não Retornou</option>
+                                <option value="ranking">Ranking Acumulado por Colaborador</option>
+                            </select>
+                        </div>
+                        
+                        <div class="input-group hidden" id="box-filtro-lider" style="grid-column: 1 / -1;"><label>Líder:</label><select id="filtro-lider-select"></select></div>
+                        <div class="input-group hidden" id="box-filtro-colab" style="grid-column: 1 / -1;"><label>Nome ou Matrícula:</label><input type="text" id="filtro-colab-input"></div>
+                        <div class="input-group hidden" id="box-filtro-motivo" style="grid-column: 1 / -1;"><label>Motivo:</label><select id="filtro-motivo-select"></select></div>
+                    </div>
+                    <button class="btn btn-primary btn-block mt-1" onclick="aplicarFiltrosRH()"><i class="ph ph-magnifying-glass"></i> Gerar Relatório</button>
+                </div>
+
+                <div class="card mt-1">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 1rem;">
+                        <h3 id="titulo-tabela-rh"><i class="ph ph-table"></i> Dados do Relatório</h3>
+                        <div class="export-buttons">
+                            <button onclick="exportarPDF()" class="btn btn-danger"><i class="ph ph-file-pdf"></i> PDF</button>
+                            <button onclick="exportarExcel()" class="btn btn-success"><i class="ph ph-file-xls"></i> Excel</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="tabela-relatorio">
+                            <thead id="thead-relatorio"></thead>
+                            <tbody id="tbody-relatorio"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="modal-confirmacao" class="modal-overlay hidden">
+        <div class="modal-box">
+            <h3 id="modal-title" class="text-primary"><i class="ph ph-warning-circle"></i> Confirmação</h3>
+            <p id="modal-message" style="margin-bottom: 1rem;">Deseja confirmar?</p>
+            <div class="input-group" id="modal-time-box">
+                <label id="modal-time-label">Data e Hora Real:</label>
+                <input type="datetime-local" id="modal-time-input" required>
+            </div>
+            <div class="modal-actions mt-1">
+                <button id="btn-modal-cancel" class="btn btn-secondary">Cancelar</button>
+                <button id="btn-modal-confirm" class="btn btn-success">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+    <script src="script.js"></script>
+</body>
+</html>
