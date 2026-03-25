@@ -46,7 +46,7 @@ function extrairDataISO(dataBRouISO) {
 }
 
 // ==========================================
-// MODAL CUSTOMIZADO (Com opção de "Não Retornou")
+// MODAL CUSTOMIZADO (Com opção de "Faltou")
 // ==========================================
 let resolveModal;
 function showConfirmModal(titulo, mensagem, acaoPortaria) {
@@ -56,7 +56,7 @@ function showConfirmModal(titulo, mensagem, acaoPortaria) {
     const timeBox = document.getElementById('modal-time-box');
     const btnConfirm = document.getElementById('btn-modal-confirm');
     
-    if(acaoPortaria === 'nao_retornou') {
+    if(acaoPortaria.includes('faltou') || acaoPortaria === 'nao_retornou') {
         timeBox.classList.add('hidden');
         btnConfirm.textContent = "Confirmar Falta";
         btnConfirm.className = "btn btn-dark";
@@ -120,9 +120,27 @@ document.getElementById('btn-logout').addEventListener('click', () => {
 // ==========================================
 // 2. TELA LÍDER
 // ==========================================
+function carregarSaudacaoLider() {
+    const frases = [
+        "Um excelente dia de trabalho!",
+        "Grandes líderes inspiram grandes equipes.",
+        "A jornada para o sucesso começa com organização.",
+        "Sua liderança faz a diferença hoje!",
+        "Facilitando o caminho para a sua equipe."
+    ];
+    const hora = new Date().getHours();
+    const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
+    const nomeLider = usuarioLogado.nome.split(' ')[0]; // Pega o primeiro nome
+    const fraseAleatoria = frases[Math.floor(Math.random() * frases.length)];
+
+    document.getElementById('lider-greeting-name').innerHTML = `<strong>${saudacao}, ${nomeLider}!</strong>`;
+    document.getElementById('lider-phrase').textContent = fraseAleatoria;
+}
+
 async function iniciarLider() {
     document.getElementById('tela-lider').classList.remove('hidden');
-    voltarSelecao(); // Garante que começa no menu de escolha
+    carregarSaudacaoLider();
+    voltarSelecao(); 
     try {
         const res = await fetch(`${API_URL}?tabela=Motivos`);
         const json = await res.json();
@@ -138,9 +156,7 @@ window.iniciarFormulario = function(tipo) {
     document.getElementById('form-autorizacao').classList.remove('hidden');
     
     document.getElementById('titulo-form').innerHTML = tipo === 'Saída' ? `<i class="ph ph-sign-out"></i> Autorizando Saída` : `<i class="ph ph-sign-in"></i> Autorizando Entrada`;
-    document.getElementById('label-prev-acao').textContent = tipo === 'Saída' ? 'Prev. Saída' : 'Prev. Entrada';
-    document.getElementById('btn-submit-form').textContent = `Autorizar ${tipo}`;
-    document.getElementById('btn-submit-form').className = tipo === 'Saída' ? 'btn btn-danger btn-block' : 'btn btn-primary btn-block';
+    document.getElementById('label-prev-acao').textContent = tipo === 'Saída' ? 'Prev. Saída' : 'Prev. Chegada';
     
     document.getElementById('prev-acao').value = dataHoraInputLocal();
     
@@ -250,8 +266,8 @@ async function carregarPortaria() {
             
             const pAcaoBR = formatarISOparaBR(auth.Previsao_Saida);
             const pRetornoBR = formatarISOparaBR(auth.Previsao_Retorno);
-            const acaoRealBR = formatarISOparaBR(auth.Data_Hora_Saida); // Coluna H
-            const retRealBR = formatarISOparaBR(auth.Data_Hora_Retorno); // Coluna M
+            const acaoRealBR = formatarISOparaBR(auth.Data_Hora_Saida); 
+            const retRealBR = formatarISOparaBR(auth.Data_Hora_Retorno); 
 
             const detalhesComuns = `
                 <div class="details">
@@ -279,7 +295,10 @@ async function carregarPortaria() {
                         <div class="name">${auth.Nome}</div>
                         ${detalhesComuns}
                         <div class="details"><strong>Prev. Chegada:</strong> <span class="text-primary">${pAcaoBR}</span></div>
-                        <button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'entrada')" class="btn btn-primary mt-1"><i class="ph ph-sign-in"></i> Confirmar Entrada</button>
+                        <div style="display:flex; gap:10px; margin-top:10px;">
+                            <button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'entrada')" class="btn btn-primary" style="flex:2;"><i class="ph ph-sign-in"></i> Confirmar Entrada</button>
+                            <button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'faltou_entrada')" class="btn btn-dark" style="flex:1;"><i class="ph ph-x-circle"></i> Faltou</button>
+                        </div>
                     </div>`;
             }
             // AGUARDANDO RETORNO
@@ -292,15 +311,15 @@ async function carregarPortaria() {
                         <div class="details"><strong>Prev. Retorno:</strong> <span style="color:var(--warning); font-weight:bold;">${pRetornoBR}</span></div>
                         <div style="display:flex; gap:10px; margin-top:10px;">
                             <button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'retorno')" class="btn" style="flex:2; background-color: var(--warning); color: white;"><i class="ph ph-clock-counter-clockwise"></i> Confirmar Retorno</button>
-                            <button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'nao_retornou')" class="btn btn-dark" style="flex:1;"><i class="ph ph-x-circle"></i> Faltou</button>
+                            <button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'faltou_saida')" class="btn btn-dark" style="flex:1;"><i class="ph ph-x-circle"></i> Faltou</button>
                         </div>
                     </div>`;
             }
             // HISTÓRICO DE HOJE
-            else if ((auth.Status === "Concluído" || auth.Status === "Saída Confirmada" || auth.Status === "Não Retornou") && (acaoRealBR.includes(dataHoje) || retRealBR.includes(dataHoje))) {
+            else if ((auth.Status === "Concluído" || auth.Status === "Saída Confirmada" || auth.Status.includes("Faltou") || auth.Status === "Não Retornou") && (acaoRealBR.includes(dataHoje) || retRealBR.includes(dataHoje) || pAcaoBR.includes(dataHoje))) {
                 
                 let classeCor = ""; let icone = "";
-                if(auth.Status === "Não Retornou") { classeCor = "hist-falta"; icone = "Não Retornou"; }
+                if(auth.Status.includes("Faltou") || auth.Status === "Não Retornou") { classeCor = "hist-falta"; icone = auth.Status; }
                 else if (auth.Vai_Retornar === 'Sim' && retRealBR) { classeCor = "hist-retorno"; icone = "Retorno Concluído"; }
                 else if (ehEntrada) { classeCor = "hist-entrada"; icone = "Entrada Concluída"; }
                 else { classeCor = "hist-saida"; icone = "Saída Concluída"; }
@@ -311,7 +330,7 @@ async function carregarPortaria() {
                         <div class="details" style="font-size:0.8rem;">
                             <div>Líder: ${auth.Lider} | Motivo: ${auth.Motivo}</div>
                             <div><strong>${ehEntrada ? 'Entrou' : 'Saiu'}:</strong> ${acaoRealBR || '-'}</div>
-                            ${auth.Vai_Retornar === 'Sim' ? `<div><strong>Retornou:</strong> <span style="${auth.Status === 'Não Retornou' ? 'color:var(--accent); font-weight:bold;' : ''}">${retRealBR || '-'}</span></div>` : ''}
+                            ${auth.Vai_Retornar === 'Sim' ? `<div><strong>Retornou:</strong> <span style="${auth.Status.includes('Faltou') || auth.Status === 'Não Retornou' ? 'color:var(--accent); font-weight:bold;' : ''}">${retRealBR || '-'}</span></div>` : ''}
                         </div>
                     </div>`;
             }
@@ -326,13 +345,15 @@ async function carregarPortaria() {
 }
 
 window.acionarPortaria = async function(id, nome, acao) {
-    const titulo = acao === 'nao_retornou' ? 'Não Retornou' : 'Liberar Acesso';
-    const msg = acao === 'nao_retornou' ? `Confirmar que ${nome} NÃO retornou ao trabalho?` : `Registrar o acesso de ${nome}?`;
+    const titulo = acao.includes('faltou') ? 'Faltou' : 'Liberar Acesso';
+    let msg = `Registrar o acesso de ${nome}?`;
+    if(acao === 'faltou_entrada') msg = `Confirmar que ${nome} NÃO compareceu para a Entrada?`;
+    if(acao === 'faltou_saida') msg = `Confirmar que ${nome} NÃO retornou da Saída?`;
     
     const result = await showConfirmModal(titulo, msg, acao);
     if(!result.confirmado) return;
     
-    const horaAjustadaBR = acao === 'nao_retornou' ? 'Não Retornou' : formatarISOparaBR(result.horaISO); 
+    const horaAjustadaBR = acao.includes('faltou') ? 'Faltou' : formatarISOparaBR(result.horaISO); 
     showToast("Salvando registro...", "info");
     
     try {
@@ -453,8 +474,13 @@ window.aplicarFiltrosRH = function() {
         if(val) dadosFiltrados = dadosFiltrados.filter(d => d.Motivo === val);
         renderizarTabelaGeralRH(dadosFiltrados);
     }
-    else if (tipo === 'nao_retornou') {
-        dadosFiltrados = dadosFiltrados.filter(d => d.Status === 'Não Retornou');
+    else if (tipo === 'faltou_entrada') {
+        dadosFiltrados = dadosFiltrados.filter(d => d.Status === 'Faltou - Entrada');
+        renderizarTabelaGeralRH(dadosFiltrados);
+    }
+    else if (tipo === 'faltou_saida') {
+        // Pega tanto o nome novo quanto o velho para não quebrar relatórios passados
+        dadosFiltrados = dadosFiltrados.filter(d => d.Status === 'Faltou - Saída' || d.Status === 'Não Retornou');
         renderizarTabelaGeralRH(dadosFiltrados);
     }
     else if (tipo === 'ranking') {
@@ -481,7 +507,7 @@ function renderizarTabelaGeralRH(dados) {
         let bClass = 'pend';
         if(d.Status === 'Concluído' || d.Status === 'Saída Confirmada') bClass = 'ok';
         if(d.Status === 'Aguardando Retorno') bClass = 'ret';
-        if(d.Status === 'Não Retornou') bClass = 'falta';
+        if(d.Status.includes('Faltou') || d.Status === 'Não Retornou') bClass = 'falta';
 
         const tipoDir = d.Direcao === 'Entrada' ? 'Entrada' : 'Saída';
 
@@ -495,7 +521,7 @@ function renderizarTabelaGeralRH(dados) {
                 <td>${d.Lider}</td>
                 <td><span class="status-badge ${bClass}">${d.Status}</span></td>
                 <td>${formatarISOparaBR(d.Data_Hora_Saida)}</td>
-                <td style="${d.Status === 'Não Retornou' ? 'color:red; font-weight:bold;' : ''}">${formatarISOparaBR(d.Data_Hora_Retorno)}</td>
+                <td style="${d.Status.includes('Faltou') || d.Status === 'Não Retornou' ? 'color:red; font-weight:bold;' : ''}">${formatarISOparaBR(d.Data_Hora_Retorno)}</td>
             </tr>
         `;
     });
