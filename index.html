@@ -19,7 +19,7 @@
                 <div class="input-group"><label>Usuário</label><input type="text" id="login-user" required></div>
                 <div class="input-group"><label>Senha</label><input type="password" id="login-senha" required></div>
                 <button type="submit" class="btn btn-primary btn-block">Entrar</button>
-                <div class="version-control">Versão: v1.4.0 Max</div>
+                <div class="version-control">Controle de Versão: v1.5.0 Pro</div>
             </form>
         </div>
     </div>
@@ -35,12 +35,19 @@
 
         <main class="content">
             <section id="tela-lider" class="view-section hidden">
+                
+                <div class="greeting-card mb-1">
+                    <div class="greeting-header">
+                        <i class="ph ph-hand-waving greeting-icon"></i>
+                        <span id="lider-greeting-name" class="greeting-title">Olá, Líder!</span>
+                    </div>
+                    <p id="lider-phrase" class="greeting-subtitle">Preparado para mais um dia de sucesso?</p>
+                </div>
+
                 <div class="card">
-                    <h3><i class="ph ph-file-plus"></i> Nova Autorização</h3>
-                    
-                    <div id="selecao-direcao" style="display: flex; gap: 10px; margin-bottom: 1.5rem;">
-                        <button class="btn btn-danger" style="flex:1; padding: 1.5rem 1rem;" onclick="iniciarFormulario('Saída')"><i class="ph ph-sign-out" style="font-size:1.5rem;"></i> Saída</button>
-                        <button class="btn btn-primary" style="flex:1; padding: 1.5rem 1rem;" onclick="iniciarFormulario('Entrada')"><i class="ph ph-sign-in" style="font-size:1.5rem;"></i> Entrada</button>
+                    <div id="selecao-direcao" style="display: flex; gap: 10px; margin-bottom: 0.5rem;">
+                        <button class="btn btn-danger" style="flex:1; padding: 1.5rem 1rem;" onclick="iniciarFormulario('Saída')"><i class="ph ph-sign-out" style="font-size:1.5rem;"></i> Autorizar Saída</button>
+                        <button class="btn btn-primary" style="flex:1; padding: 1.5rem 1rem;" onclick="iniciarFormulario('Entrada')"><i class="ph ph-sign-in" style="font-size:1.5rem;"></i> Autorizar Entrada</button>
                     </div>
 
                     <form id="form-autorizacao" class="hidden">
@@ -86,8 +93,10 @@
                             <label>Observação (Opcional)</label>
                             <textarea id="obs-saida" rows="2"></textarea>
                         </div>
-                        <button type="button" class="btn btn-secondary btn-block mb-1" onclick="voltarSelecao()"><i class="ph ph-arrow-left"></i> Voltar</button>
-                        <button type="submit" class="btn btn-success btn-block" id="btn-submit-form">Autorizar</button>
+                        <div style="display: flex; gap: 10px; margin-top: 1rem;">
+                            <button type="button" class="btn btn-secondary" onclick="voltarSelecao()" style="flex:1;"><i class="ph ph-arrow-left"></i> Voltar</button>
+                            <button type="submit" class="btn btn-success" id="btn-submit-form" style="flex:2;">Autorizar</button>
+                        </div>
                     </form>
                 </div>
             </section>
@@ -111,7 +120,7 @@
                 </div>
 
                 <div class="card" style="border-top: 4px solid var(--success);">
-                    <h3 class="text-success"><i class="ph ph-check-circle"></i> Histórico de Hoje (Concluídos)</h3>
+                    <h3 class="text-success"><i class="ph ph-check-circle"></i> Histórico de Hoje</h3>
                     <div id="lista-historico-portaria" class="list-container"></div>
                 </div>
             </section>
@@ -141,7 +150,8 @@
                                 <option value="lider">Filtro por Líder</option>
                                 <option value="colaborador">Filtro por Colaborador</option>
                                 <option value="motivo">Filtro por Motivo</option>
-                                <option value="nao_retornou">Relatório: Colaborador Não Retornou</option>
+                                <option value="faltou_entrada">Faltou - Liberação de Entrada</option>
+                                <option value="faltou_saida">Faltou - Liberação de Saída</option>
                                 <option value="ranking">Ranking Acumulado por Colaborador</option>
                             </select>
                         </div>
