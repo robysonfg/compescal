@@ -3,6 +3,7 @@
 // ==========================================
 const API_URL = "https://script.google.com/macros/s/AKfycbzoXv41yRgJEkYIAPRzDvRPp5aRh6PTj5TzbfaOTrKzT_yUwHn3xPtMB4F5TSlZS2wG9w/exec"; // <--- ATENÇÃO: COLE SUA URL AQUI
 let ultimoTotalPortaria = 0; 
+let intervaloPortaria = null; // Motor de Atualização Silenciosa
 let usuarioLogado = null;
 let dadosGeraisRH = []; 
 let direcaoAtual = ""; 
@@ -46,7 +47,7 @@ function extrairDataISO(dataBRouISO) {
     return String(dataBRouISO);
 }
 
-// Lógica para Minimizar/Maximizar blocos no RH
+// Minimizar/Maximizar blocos no RH
 window.toggleVisibilidade = function(idContainer, btnElement) {
     const el = document.getElementById(idContainer);
     if (el.classList.contains('hidden')) {
@@ -164,10 +165,12 @@ function direcionarTela(perfil) {
 }
 
 document.getElementById('btn-logout').addEventListener('click', () => {
-    usuarioLogado = null; document.getElementById('form-login').reset();
+    usuarioLogado = null; 
+    document.getElementById('form-login').reset();
     document.getElementById('view-app').classList.add('hidden');
     document.getElementById('view-login').classList.remove('hidden');
     document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+    if (intervaloPortaria) clearInterval(intervaloPortaria);
 });
 
 // ==========================================
@@ -189,11 +192,13 @@ async function iniciarLider() {
     if(document.getElementById('data-falta')) document.getElementById('data-falta').value = hoje;
     if(document.getElementById('data-ci')) document.getElementById('data-ci').value = hoje;
 
-    // INICIALIZANDO O FLATPICKR PARA A FOLGA (MÚLTIPLAS DATAS)
+    // INICIALIZANDO O FLATPICKR COM PADRÃO BR (DD/MM/YYYY) PARA EXIBIÇÃO
     if(document.getElementById('data-folga')) {
         flatpickr("#data-folga", {
             mode: "multiple",
-            dateFormat: "Y-m-d",
+            dateFormat: "Y-m-d", // Salva no código como padrão internacional
+            altInput: true,      // Cria um input falso para exibir bonitinho
+            altFormat: "d/m/Y",  // Exibe para o usuário como Dia/Mês/Ano
             locale: "pt",
             defaultDate: [hoje]
         });
@@ -340,22 +345,22 @@ function configurarFormularioLider(idForm, tipoLancamento) {
         
         if(!nome) return showToast("Busque a matrícula primeiro.", "erro");
 
-        // Tratamento para a Array de Múltiplas Datas (Folga)
+        // Transforma o texto do Flatpickr (Ex: "2026-03-31, 2026-04-01") em Array real
         const datasArray = dataInputRaw.split(',').map(d => d.trim()).filter(d => d);
-
-        const observacao = document.getElementById(sufixo === 'falta' ? 'obs-falta' : (sufixo === 'folga' ? 'tipo-folga' : 'assunto-ci')).value;
 
         const btn = form.querySelector('button[type="submit"]');
         const txtOrg = btn.innerHTML;
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; 
         btn.disabled = true;
 
+        const observacao = document.getElementById(sufixo === 'falta' ? 'obs-falta' : (sufixo === 'folga' ? 'tipo-folga' : 'assunto-ci')).value;
+        
         let salvos = 0;
         let erros = 0;
 
         for (const dataAtual of datasArray) {
             if (verificaDuplicidade(matricula, dataAtual, tipoLancamento)) {
-                showToast(`Atenção: Já existe um(a) ${tipoLancamento} na data ${formatarISOparaBR(dataAtual)}!`, 'erro');
+                showToast(`Atenção: Já existe ${tipoLancamento} na data ${formatarISOparaBR(dataAtual)}!`, 'erro');
                 erros++;
                 continue; 
             }
@@ -374,22 +379,11 @@ function configurarFormularioLider(idForm, tipoLancamento) {
             ];
 
             try {
-                const res = await fetch(API_URL, { 
-                    method: 'POST', 
-                    body: JSON.stringify({ acao: 'nova_autorizacao', dados: dados }) 
-                });
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ acao: 'nova_autorizacao', dados: dados }) });
                 const dataRes = await res.json();
-                
-                if(dataRes.status === 'sucesso') { 
-                    salvos++;
-                } else { 
-                    showToast(dataRes.mensagem, "erro");
-                    erros++; 
-                }
-            } catch(err) { 
-                showToast("Falha na conexão.", "erro");
-                erros++; 
-            }
+                if(dataRes.status === 'sucesso') salvos++;
+                else { showToast(dataRes.mensagem, "erro"); erros++; }
+            } catch(err) { showToast("Falha na conexão.", "erro"); erros++; }
         }
 
         if (salvos > 0) {
@@ -404,7 +398,7 @@ function configurarFormularioLider(idForm, tipoLancamento) {
             }
 
             voltarParaMenu();
-            iniciarLider(); // Atualiza os dados background
+            iniciarLider(); // Recarrega os dados em background
         }
 
         btn.innerHTML = txtOrg; 
@@ -564,19 +558,32 @@ document.getElementById('btn-modal-confirm').addEventListener('click', () => {
     setTimeout(() => { btnConfirmarOrigem.disabled = false; }, 1000);
 });
 
+// MOTOR DE ATUALIZAÇÃO SILENCIOSA DA PORTARIA
 async function iniciarPortaria() {
     document.getElementById('tela-portaria').classList.remove('hidden');
     carregarPortaria();
+
+    if (intervaloPortaria) clearInterval(intervaloPortaria);
+    
+    intervaloPortaria = setInterval(() => {
+        // Só atualiza se a tela da portaria for a tela visível
+        if (!document.getElementById('tela-portaria').classList.contains('hidden')) {
+            carregarPortaria(true); // O parâmetro 'true' faz a atualização silenciosa
+        }
+    }, 15000); // 15 segundos
 }
 
-async function carregarPortaria() {
+async function carregarPortaria(silencioso = false) {
     const listaSaida = document.getElementById('lista-portaria-saida');
     const listaEntrada = document.getElementById('lista-portaria-entrada');
     const listaRetorno = document.getElementById('lista-portaria-retorno');
     const listaHistorico = document.getElementById('lista-historico-portaria');
     
-    listaSaida.innerHTML = '<div style="text-align:center;"><i class="ph ph-spinner ph-spin" style="font-size:2rem;"></i></div>';
-    listaEntrada.innerHTML = ''; listaRetorno.innerHTML = ''; listaHistorico.innerHTML = '';
+    // Só exibe a animação gigante de carregamento se o usuário clicou no botão "Atualizar"
+    if (!silencioso) {
+        listaSaida.innerHTML = '<div style="text-align:center;"><i class="ph ph-spinner ph-spin" style="font-size:2rem;"></i></div>';
+        listaEntrada.innerHTML = ''; listaRetorno.innerHTML = ''; listaHistorico.innerHTML = '';
+    }
     
     try {
         const res = await fetch(`${API_URL}?tabela=Lancamentos`);
@@ -646,7 +653,9 @@ async function carregarPortaria() {
         listaRetorno.innerHTML = htmlRetorno || '<p class="text-light">Ninguém aguardando retorno.</p>';
         listaHistorico.innerHTML = htmlHistorico || '<p class="text-light">Histórico vazio hoje.</p>';
         
-    } catch(e) { listaSaida.innerHTML = '<p class="text-danger">Erro.</p>'; }
+    } catch(e) { 
+        if(!silencioso) listaSaida.innerHTML = '<p class="text-danger">Erro.</p>'; 
+    }
 }
 
 window.acionarPortaria = async function(id, nome, acao) {
@@ -687,8 +696,6 @@ window.acionarPortaria = async function(id, nome, acao) {
 // ==========================================
 async function iniciarRH() {
     document.getElementById('tela-rh').classList.remove('hidden');
-    
-    // Esconde a tabela ao entrar até que ele aplique o filtro
     document.getElementById('card-dados-relatorio').classList.add('hidden');
     
     try {
@@ -702,7 +709,6 @@ async function iniciarRH() {
         
         document.getElementById('tipo-relatorio').value = 'geral';
         toggleFiltrosRH();
-        // Não aplica filtro automaticamente para forçar o clique
     } catch(e) { showToast("Erro no RH.", "erro"); }
 }
 
@@ -710,13 +716,16 @@ function carregarNotificacoesHoje(dados) {
     const container = document.getElementById('painel-notificacoes-rh');
     if (!container) return;
 
-    const dataHojeBR = new Date().toLocaleDateString('pt-BR'); 
+    const hojeISO = new Date().toISOString().split('T')[0]; 
     let saidas = [], entradas = [], faltas = [], folgas = [], cis = [];
 
+    // Checa todos os dados buscando os registros válidos para o dia de HOJE
     dados.forEach(d => {
-        const ehDeHoje = Object.values(d).some(val => String(val).includes(dataHojeBR));
+        const d1 = extrairDataISO(d.Data_Hora_Pedido);
+        const d2 = extrairDataISO(d.Previsao_Saida);
+        const d3 = extrairDataISO(d.Data_Hora_Saida);
         
-        if (ehDeHoje) {
+        if (d1 === hojeISO || d2 === hojeISO || d3 === hojeISO) {
             if (d.Motivo === 'Falta') faltas.push(d);
             else if (d.Motivo === 'Folga') folgas.push(d);
             else if (d.Motivo === 'CI') cis.push(d);
@@ -779,8 +788,7 @@ function gerarKPIsERanking(dados) {
     arrayRanking.sort((a, b) => b.total - a.total);
     const ulRanking = document.getElementById('lista-ranking'); ulRanking.innerHTML = '';
     
-    // AGORA EXIBE OS 10 MAIORES
-    const top10 = arrayRanking.slice(0, 10);
+    const top10 = arrayRanking.slice(0, 10); // Exibindo Top 10 agora
     
     if(top10.length === 0) { ulRanking.innerHTML = '<li><span class="text-light">Nenhuma autorização neste mês.</span></li>'; } 
     else { top10.forEach((item, index) => { ulRanking.innerHTML += `<li><span><strong>${index + 1}º</strong> ${item.nome}</span><span class="badge-rank">${item.total} req.</span></li>`; }); }
@@ -809,7 +817,6 @@ window.aplicarFiltrosRH = function() {
     const btn = document.querySelector('.filter-group').nextElementSibling;
     const txtOrg = btn.innerHTML; btn.innerHTML = 'Filtrando...'; btn.disabled = true;
 
-    // MOSTRA O CARD DOS DADOS DO RELATÓRIO
     document.getElementById('card-dados-relatorio').classList.remove('hidden');
 
     let dadosFiltrados = dadosGeraisRH.filter(d => {
@@ -857,7 +864,6 @@ window.aplicarFiltrosRH = function() {
 function renderizarTabelaGeralRH(dados) {
     const thead = document.getElementById('thead-relatorio'); const tbody = document.getElementById('tbody-relatorio');
     
-    // COLUNA NOVA DE OBSERVAÇÃO ADICIONADA AQUI
     thead.innerHTML = `<tr><th>Data/Pedido</th><th>Tipo</th><th>Matrícula</th><th>Colaborador</th><th>Motivo</th><th>Líder</th><th>Observação</th><th>Status</th><th>Liberação</th><th>Retorno</th></tr>`;
     tbody.innerHTML = '';
     
