@@ -1,9 +1,10 @@
 // ==========================================
-// CONFIGURAÇÃO DA API
+// CONFIGURAÇÃO DA API E VARIÁVEIS GLOBAIS
 // ==========================================
 const API_URL = "https://script.google.com/macros/s/AKfycbzoXv41yRgJEkYIAPRzDvRPp5aRh6PTj5TzbfaOTrKzT_yUwHn3xPtMB4F5TSlZS2wG9w/exec"; // <--- ATENÇÃO: COLE SUA URL AQUI
+let ultimoTotalPortaria = 0; 
 let usuarioLogado = null;
-let dadosGeraisRH = [];
+let dadosGeraisRH = []; 
 let direcaoAtual = ""; 
 
 // ==========================================
@@ -45,6 +46,18 @@ function extrairDataISO(dataBRouISO) {
     return String(dataBRouISO);
 }
 
+// Lógica para Minimizar/Maximizar blocos no RH
+window.toggleVisibilidade = function(idContainer, btnElement) {
+    const el = document.getElementById(idContainer);
+    if (el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+        btnElement.innerHTML = '<i class="ph ph-minus"></i>';
+    } else {
+        el.classList.add('hidden');
+        btnElement.innerHTML = '<i class="ph ph-plus"></i>';
+    }
+}
+
 // ==========================================
 // 1. SISTEMA DE LOGIN E PERFIS
 // ==========================================
@@ -53,7 +66,6 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
     const btn = e.target.querySelector('button');
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Entrando...'; btn.disabled = true;
     
-    // ATUALIZAÇÃO CIRÚRGICA: Pega o login e limpa os espaços vazios nas pontas
     const login = document.getElementById('login-user').value.trim();
     const senha = document.getElementById('login-senha').value;
     
@@ -114,6 +126,7 @@ function abrirTrocaDeSenha(loginUser) {
                 document.getElementById('login-senha').focus();
             } else { showToast(data.mensagem, "erro"); }
         } catch(err) { showToast("Falha ao salvar.", "erro"); }
+        
         btn.innerHTML = txtOrg; btn.disabled = false;
     };
 }
@@ -158,7 +171,7 @@ document.getElementById('btn-logout').addEventListener('click', () => {
 });
 
 // ==========================================
-// 2. TELA LÍDER
+// 2. TELA LÍDER E NOVOS MÓDULOS
 // ==========================================
 function carregarSaudacaoLider() {
     const frases = ["Um excelente dia de trabalho!", "Sua liderança faz a diferença hoje!", "A jornada para o sucesso começa com organização.", "Vamos para mais um dia produtivo!"];
@@ -170,20 +183,260 @@ function carregarSaudacaoLider() {
 
 async function iniciarLider() {
     document.getElementById('tela-lider').classList.remove('hidden');
-    carregarSaudacaoLider(); voltarSelecao(); 
+    carregarSaudacaoLider(); voltarSelecao();
+    
+    const hoje = new Date().toISOString().split('T')[0];
+    if(document.getElementById('data-falta')) document.getElementById('data-falta').value = hoje;
+    if(document.getElementById('data-ci')) document.getElementById('data-ci').value = hoje;
+
+    // INICIALIZANDO O FLATPICKR PARA A FOLGA (MÚLTIPLAS DATAS)
+    if(document.getElementById('data-folga')) {
+        flatpickr("#data-folga", {
+            mode: "multiple",
+            dateFormat: "Y-m-d",
+            locale: "pt",
+            defaultDate: [hoje]
+        });
+    }
+
     try {
         const res = await fetch(`${API_URL}?tabela=Motivos`);
         const json = await res.json();
         const select = document.getElementById('motivo-saida');
         select.innerHTML = '<option value="">Selecione...</option>';
         if(json.dados) json.dados.forEach(m => select.innerHTML += `<option value="${m.Motivo}">${m.Motivo}</option>`);
-    } catch(e) { }
+
+        const resLanc = await fetch(`${API_URL}?tabela=Lancamentos`);
+        const jsonLanc = await resLanc.json();
+        dadosGeraisRH = jsonLanc.dados || [];
+    } catch(e) { console.log(e); }
 }
 
+// ------------------------------------------
+// HISTÓRICO DO LÍDER (NOVO MÓDULO)
+// ------------------------------------------
+window.abrirHistoricoLider = function() {
+    abrirTela('view-historico-lider');
+    
+    const hoje = new Date().toISOString().split('T')[0];
+    document.getElementById('filtro-hist-inicio').value = hoje;
+    document.getElementById('filtro-hist-fim').value = hoje;
+    document.getElementById('filtro-hist-mat').value = '';
+    
+    filtrarHistoricoLider(); 
+}
+
+window.filtrarHistoricoLider = async function() {
+    const container = document.getElementById('painel-historico-lider');
+    container.innerHTML = '<div style="text-align:center; padding:20px;"><i class="ph ph-spinner ph-spin" style="font-size:2rem; color:var(--primary);"></i><br>Buscando dados da nuvem...</div>';
+    
+    try {
+        const res = await fetch(`${API_URL}?tabela=Lancamentos`);
+        const json = await res.json();
+        dadosGeraisRH = json.dados || [];
+    } catch(e) {
+        showToast("Erro ao buscar histórico recente.", "erro");
+    }
+
+    const dtIn = document.getElementById('filtro-hist-inicio').value;
+    const dtFim = document.getElementById('filtro-hist-fim').value;
+    const mat = document.getElementById('filtro-hist-mat').value;
+
+    let dadosLider = dadosGeraisRH.filter(d => d.Lider === usuarioLogado.nome);
+
+    if (dtIn || dtFim) {
+        dadosLider = dadosLider.filter(d => {
+            const dFmt = extrairDataISO(d.Data_Hora_Pedido || d.Data); 
+            let ok = true;
+            if (dtIn && dFmt < dtIn) ok = false;
+            if (dtFim && dFmt > dtFim) ok = false;
+            return ok;
+        });
+    }
+
+    if (mat) {
+        dadosLider = dadosLider.filter(d => String(d.Matricula) === String(mat));
+    }
+
+    let saidas = [], entradas = [], faltas = [], folgas = [], cis = [];
+
+    dadosLider.forEach(d => {
+        if (d.Motivo === 'Falta') faltas.push(d);
+        else if (d.Motivo === 'Folga') folgas.push(d);
+        else if (d.Motivo === 'CI') cis.push(d);
+        else if (d.Direcao === 'Saída') saidas.push(d);
+        else if (d.Direcao === 'Entrada') entradas.push(d);
+    });
+
+    function criarCardLider(titulo, icone, cor, lista) {
+        if(lista.length === 0) return '';
+        
+        let html = `
+        <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px; border-left: 5px solid var(--${cor});">
+            <h4 style="color: var(--${cor}); border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 10px; font-size: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="ph ${icone}"></i> ${titulo}</span>
+                <span style="background: var(--${cor}); color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.8rem;">${lista.length} reg.</span>
+            </h4>
+            <div style="display:flex; flex-direction:column; gap:8px; max-height: 250px; overflow-y: auto; padding-right: 5px;">`;
+        
+        lista.forEach(item => {
+            const dataBr = formatarISOparaBR(item.Data_Hora_Pedido || item.Data);
+            const infoExtra = ['Falta', 'Folga', 'CI'].includes(item.Motivo) ? item.Observacao : item.Motivo;
+            html += `
+                <div style="font-size: 0.85rem; background: var(--bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border);">
+                    <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
+                        <strong style="color:var(--primary);">${item.Nome} <span style="color:var(--text-light)">(${item.Matricula})</span></strong>
+                        <span style="font-size:0.75rem; color:var(--text-light); font-weight:bold;">${dataBr.split(' ')[0]}</span>
+                    </div>
+                    <div style="color:var(--dark); margin-bottom: 3px;"><i class="ph ph-caret-right"></i> ${infoExtra || '-'}</div>
+                    ${item.Status ? `<div style="font-size:0.75rem;">Status Atual: <strong>${item.Status}</strong></div>` : ''}
+                </div>`;
+        });
+        html += `</div></div>`;
+        return html;
+    }
+
+    let htmlFinal = 
+        criarCardLider('Liberação de Saída', 'ph-sign-out', 'accent', saidas) +
+        criarCardLider('Liberação de Entrada', 'ph-sign-in', 'primary', entradas) +
+        criarCardLider('Lançamento de Falta', 'ph-user-minus', 'dark', faltas) +
+        criarCardLider('Lançamento de Folga', 'ph-coffee', 'success', folgas) +
+        criarCardLider('C.I. Comunicação', 'ph-file-text', 'warning', cis);
+
+    if (!htmlFinal) {
+        htmlFinal = '<div style="text-align:center; padding: 20px; color: var(--text-light);"><i class="ph ph-ghost" style="font-size:2rem; margin-bottom:10px;"></i><br>Nenhum lançamento encontrado para este filtro.</div>';
+    }
+
+    container.innerHTML = htmlFinal;
+}
+
+// ------------------------------------------
+// VALIDAÇÃO ANTI-DUPLICIDADE E NOVOS FORMS
+// ------------------------------------------
+function verificaDuplicidade(matricula, data, tipoLancamento) {
+    const dataVerificar = data.split('T')[0]; 
+    const jaExiste = dadosGeraisRH.some(registro => {
+        const dataRegistro = String(registro.Data_Hora_Pedido || registro.Data || "").split('T')[0];
+        return (
+            String(registro.Matricula) === String(matricula) && 
+            dataRegistro === dataVerificar && 
+            registro.Motivo === tipoLancamento
+        );
+    });
+    return jaExiste;
+}
+
+function configurarFormularioLider(idForm, tipoLancamento) {
+    const form = document.getElementById(idForm);
+    if (!form) return;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const sufixo = idForm.split('-')[1]; 
+        const matricula = document.getElementById(`mat-${sufixo}`).value;
+        const dataInputRaw = document.getElementById(`data-${sufixo}`).value;
+        const nome = document.getElementById(`nome-${sufixo}`).value;
+        
+        if(!nome) return showToast("Busque a matrícula primeiro.", "erro");
+
+        // Tratamento para a Array de Múltiplas Datas (Folga)
+        const datasArray = dataInputRaw.split(',').map(d => d.trim()).filter(d => d);
+
+        const observacao = document.getElementById(sufixo === 'falta' ? 'obs-falta' : (sufixo === 'folga' ? 'tipo-folga' : 'assunto-ci')).value;
+
+        const btn = form.querySelector('button[type="submit"]');
+        const txtOrg = btn.innerHTML;
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; 
+        btn.disabled = true;
+
+        let salvos = 0;
+        let erros = 0;
+
+        for (const dataAtual of datasArray) {
+            if (verificaDuplicidade(matricula, dataAtual, tipoLancamento)) {
+                showToast(`Atenção: Já existe um(a) ${tipoLancamento} na data ${formatarISOparaBR(dataAtual)}!`, 'erro');
+                erros++;
+                continue; 
+            }
+            
+            const dados = [
+                formatarISOparaBR(dataHoraInputLocal()), 
+                matricula,                               
+                nome,                                    
+                tipoLancamento,                          
+                usuarioLogado.nome,                      
+                observacao,                              
+                formatarISOparaBR(dataAtual),                 
+                'Não',                                   
+                '',                                      
+                'Lançamento RH'                          
+            ];
+
+            try {
+                const res = await fetch(API_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ acao: 'nova_autorizacao', dados: dados }) 
+                });
+                const dataRes = await res.json();
+                
+                if(dataRes.status === 'sucesso') { 
+                    salvos++;
+                } else { 
+                    showToast(dataRes.mensagem, "erro");
+                    erros++; 
+                }
+            } catch(err) { 
+                showToast("Falha na conexão.", "erro");
+                erros++; 
+            }
+        }
+
+        if (salvos > 0) {
+            showToast(`${salvos} ${tipoLancamento}(s) salvo(s) com sucesso!`, 'sucesso'); 
+            form.reset();
+            
+            const hoje = new Date().toISOString().split('T')[0];
+            if (sufixo === 'folga' && document.getElementById('data-folga')._flatpickr) {
+                document.getElementById('data-folga')._flatpickr.setDate(hoje);
+            } else {
+                document.getElementById(`data-${sufixo}`).value = hoje;
+            }
+
+            voltarParaMenu();
+            iniciarLider(); // Atualiza os dados background
+        }
+
+        btn.innerHTML = txtOrg; 
+        btn.disabled = false;
+    });
+}
+
+configurarFormularioLider('form-falta', 'Falta');
+configurarFormularioLider('form-folga', 'Folga');
+configurarFormularioLider('form-ci', 'CI');
+
+window.abrirTela = function(idTela) {
+    document.getElementById('selecao-direcao').classList.add('hidden');
+    document.getElementById(idTela).classList.remove('hidden');
+}
+
+window.voltarParaMenu = function() {
+    document.getElementById('view-falta').classList.add('hidden');
+    document.getElementById('view-folga').classList.add('hidden');
+    document.getElementById('view-ci').classList.add('hidden');
+    document.getElementById('form-autorizacao-box').classList.add('hidden');
+    document.getElementById('view-historico-lider').classList.add('hidden');
+    document.getElementById('selecao-direcao').classList.remove('hidden');
+}
+
+// ------------------------------------------
+// FORMULÁRIO ORIGINAL DE ENTRADA E SAÍDA
+// ------------------------------------------
 window.iniciarFormulario = function(tipo) {
     direcaoAtual = tipo;
     document.getElementById('selecao-direcao').classList.add('hidden');
-    document.getElementById('form-autorizacao').classList.remove('hidden');
+    document.getElementById('form-autorizacao-box').classList.remove('hidden');
     document.getElementById('titulo-form').innerHTML = tipo === 'Saída' ? `<i class="ph ph-sign-out"></i> Autorizando Saída` : `<i class="ph ph-sign-in"></i> Autorizando Entrada`;
     document.getElementById('label-prev-acao').textContent = tipo === 'Saída' ? 'Prev. Saída' : 'Prev. Chegada';
     document.getElementById('prev-acao').value = dataHoraInputLocal();
@@ -195,7 +448,7 @@ window.iniciarFormulario = function(tipo) {
 
 window.voltarSelecao = function() {
     document.getElementById('form-autorizacao').reset();
-    document.getElementById('form-autorizacao').classList.add('hidden');
+    document.getElementById('form-autorizacao-box').classList.add('hidden');
     document.getElementById('selecao-direcao').classList.remove('hidden');
 }
 
@@ -206,21 +459,33 @@ window.togglePrevisaoRetorno = function() {
     else { box.classList.add('hidden'); input.required = false; input.value = ''; }
 }
 
-document.getElementById('btn-buscar-mat').addEventListener('click', buscarMatricula);
-document.getElementById('mat-colaborador').addEventListener('blur', buscarMatricula);
-
-async function buscarMatricula() {
-    const mat = document.getElementById('mat-colaborador').value;
+window.buscarColaborador = async function(idInputMatricula, idInputNome) {
+    const mat = document.getElementById(idInputMatricula).value;
     if(!mat) return;
-    const aviso = document.getElementById('aviso-mat'); const inputNome = document.getElementById('nome-colaborador');
-    aviso.textContent = "Buscando..."; aviso.classList.remove('hidden'); aviso.classList.replace('text-danger', 'text-light');
+    
+    const aviso = document.getElementById('aviso-mat');
+    if(aviso) { aviso.textContent = "Buscando..."; aviso.classList.remove('hidden'); aviso.classList.replace('text-danger', 'text-light'); }
+    
+    const inputNome = document.getElementById(idInputNome);
+    
     try {
         const res = await fetch(`${API_URL}?acao=buscar_colaborador&matricula=${mat}`);
         const data = await res.json();
-        if(data.status === 'sucesso') { inputNome.value = data.dados.nome; aviso.classList.add('hidden'); } 
-        else { inputNome.value = ''; aviso.textContent = "Não encontrada."; aviso.classList.replace('text-light', 'text-danger'); }
-    } catch(e) { aviso.textContent = "Erro."; aviso.classList.replace('text-light', 'text-danger'); }
+        if(data.status === 'sucesso') { 
+            inputNome.value = data.dados.nome; 
+            if(aviso) aviso.classList.add('hidden'); 
+        } else { 
+            inputNome.value = ''; 
+            if(aviso) { aviso.textContent = "Não encontrada."; aviso.classList.replace('text-light', 'text-danger'); }
+            else { showToast("Matrícula não encontrada", "erro"); }
+        }
+    } catch(e) { 
+        if(aviso) { aviso.textContent = "Erro na busca."; aviso.classList.replace('text-light', 'text-danger'); }
+    }
 }
+
+document.getElementById('btn-buscar-mat').addEventListener('click', () => buscarColaborador('mat-colaborador', 'nome-colaborador'));
+document.getElementById('mat-colaborador').addEventListener('blur', () => buscarColaborador('mat-colaborador', 'nome-colaborador'));
 
 document.getElementById('form-autorizacao').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -245,6 +510,7 @@ document.getElementById('form-autorizacao').addEventListener('submit', async (e)
         if(data.status === 'sucesso') { showToast("Autorização enviada!", "sucesso"); voltarSelecao(); } 
         else { showToast(data.mensagem, "erro"); }
     } catch(err) { showToast("Falha na conexão.", "erro"); }
+    
     btn.innerHTML = txtOrg; btn.disabled = false;
 });
 
@@ -313,14 +579,31 @@ async function carregarPortaria() {
     listaEntrada.innerHTML = ''; listaRetorno.innerHTML = ''; listaHistorico.innerHTML = '';
     
     try {
-        const res = await fetch(`${API_URL}?tabela=Lancamentos`); 
+        const res = await fetch(`${API_URL}?tabela=Lancamentos`);
         const json = await res.json();
         const autorizacoes = json.dados || [];
+
+        const pendentesPortaria = autorizacoes.filter(a => {
+            if (a.Direcao === 'Lançamento RH' || ['Falta', 'Folga', 'CI'].includes(a.Motivo)) return false;
+            return a.Status && a.Status.includes("Aguardando");
+        });
+        
+        const totalAtual = pendentesPortaria.length; 
+        
+        if (totalAtual > ultimoTotalPortaria) {
+            const audio = document.getElementById('som-campainha');
+            if (audio) { audio.play().catch(e => console.log('Áudio bloqueado pelo navegador')); }
+        }
+        ultimoTotalPortaria = totalAtual;
         
         const dataHoje = new Date().toLocaleDateString('pt-BR');
         let htmlSaida = '', htmlEntrada = '', htmlRetorno = '', htmlHistorico = '';
 
         autorizacoes.reverse().forEach(auth => {
+            if (auth.Direcao === 'Lançamento RH' || ['Falta', 'Folga', 'CI'].includes(auth.Motivo)) {
+                return; 
+            }
+
             const ehEntrada = auth.Direcao === 'Entrada';
             const vaiRetornarTag = (!ehEntrada && auth.Vai_Retornar === 'Sim') ? `<span class="tag-sim">Requer Retorno</span>` : ((!ehEntrada) ? `<span class="tag-nao">Sem Retorno</span>` : '');
             
@@ -354,7 +637,7 @@ async function carregarPortaria() {
                 else if (ehEntrada) { classeCor = "hist-entrada"; icone = "Entrada Concluída"; }
                 else { classeCor = "hist-saida"; icone = "Saída Concluída"; }
 
-                htmlHistorico += `<div class="auth-card ${classeCor}"><div style="display:flex; justify-content:space-between;"><div class="name">${auth.Nome}</div><span style="font-size:0.7rem; font-weight:bold; color:var(--text-light);">${icone}</span></div><div class="details" style="font-size:0.8rem;"><div>Líder: ${auth.Lider} | Motivo: ${auth.Motivo}</div><div><strong>${ehEntrada ? 'Entrou' : 'Saiu'}:</strong> ${acaoRealBR || '-'}</div>${auth.Vai_Retornar === 'Sim' ? `<div><strong>Retornou:</strong> <span style="${auth.Status.includes('Faltou') || auth.Status === 'Não Retornou' ? 'color:var(--accent); font-weight:bold;' : ''}">${retRealBR || '-'}</span></div>` : ''}</div></div>`;
+                htmlHistorico += `<div class="auth-card ${classeCor}"><div style="display:flex; justify-content:space-between;"><div class="name">${auth.Nome}</div><span style="font-size:0.7rem; font-weight:bold; color:var(--text-light);">${icone}</span></div><div class="details" style="font-size:0.8rem;"><div>Líder: ${auth.Lider} | Motivo: ${auth.Motivo}</div><div><strong>${ehEntrada ? 'Entrou' : 'Saiu'}:</strong> ${acaoRealBR || pAcaoBR || '-'}</div>${auth.Vai_Retornar === 'Sim' ? `<div><strong>Retornou:</strong> <span style="${auth.Status.includes('Faltou') || auth.Status === 'Não Retornou' ? 'color:var(--accent); font-weight:bold;' : ''}">${retRealBR || '-'}</span></div>` : ''}</div></div>`;
             }
         });
 
@@ -404,17 +687,76 @@ window.acionarPortaria = async function(id, nome, acao) {
 // ==========================================
 async function iniciarRH() {
     document.getElementById('tela-rh').classList.remove('hidden');
-    document.getElementById('tbody-relatorio').innerHTML = '<tr><td colspan="8" class="text-center">Atualizando painel...</td></tr>';
+    
+    // Esconde a tabela ao entrar até que ele aplique o filtro
+    document.getElementById('card-dados-relatorio').classList.add('hidden');
+    
     try {
         const res = await fetch(`${API_URL}?tabela=Lancamentos`);
         const json = await res.json();
         dadosGeraisRH = json.dados || [];
+        
         gerarKPIsERanking(dadosGeraisRH);
+        carregarNotificacoesHoje(dadosGeraisRH); 
         preencherOpcoesFiltros(dadosGeraisRH);
+        
         document.getElementById('tipo-relatorio').value = 'geral';
         toggleFiltrosRH();
-        aplicarFiltrosRH();
+        // Não aplica filtro automaticamente para forçar o clique
     } catch(e) { showToast("Erro no RH.", "erro"); }
+}
+
+function carregarNotificacoesHoje(dados) {
+    const container = document.getElementById('painel-notificacoes-rh');
+    if (!container) return;
+
+    const dataHojeBR = new Date().toLocaleDateString('pt-BR'); 
+    let saidas = [], entradas = [], faltas = [], folgas = [], cis = [];
+
+    dados.forEach(d => {
+        const ehDeHoje = Object.values(d).some(val => String(val).includes(dataHojeBR));
+        
+        if (ehDeHoje) {
+            if (d.Motivo === 'Falta') faltas.push(d);
+            else if (d.Motivo === 'Folga') folgas.push(d);
+            else if (d.Motivo === 'CI') cis.push(d);
+            else if (d.Direcao === 'Saída') saidas.push(d);
+            else if (d.Direcao === 'Entrada') entradas.push(d);
+        }
+    });
+
+    function criarCardNotificacao(titulo, icone, cor, lista) {
+        let html = `
+        <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px; border-top: 3px solid var(--${cor});">
+            <h4 style="color: var(--${cor}); border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 10px; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="ph ${icone}"></i> ${titulo}</span>
+                <span style="background: var(--${cor}); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;">${lista.length}</span>
+            </h4>
+            <div style="max-height: 180px; overflow-y: auto; font-size: 0.8rem; padding-right: 5px;">`;
+        
+        if (lista.length === 0) {
+            html += `<p style="color: var(--text-light); text-align: center; padding: 10px 0;">Nenhum registro hoje.</p>`;
+        } else {
+            lista.forEach(item => {
+                const infoExtra = ['Falta', 'Folga', 'CI'].includes(item.Motivo) ? item.Observacao : item.Motivo;
+                html += `
+                <div style="padding: 6px 0; border-bottom: 1px dashed var(--border);">
+                    <strong style="color: var(--primary);">${item.Nome}</strong> <span style="color: var(--text-light); font-size: 0.7rem;">(${item.Matricula})</span><br>
+                    <span style="color: var(--text-light);">Líder: ${item.Lider}</span><br>
+                    <span style="color: var(--dark); font-weight: 500;">${infoExtra || '-'}</span>
+                </div>`;
+            });
+        }
+        html += `</div></div>`;
+        return html;
+    }
+
+    container.innerHTML = 
+        criarCardNotificacao('Saídas', 'ph-sign-out', 'accent', saidas) +
+        criarCardNotificacao('Entradas', 'ph-sign-in', 'primary', entradas) +
+        criarCardNotificacao('Faltas', 'ph-user-minus', 'dark', faltas) +
+        criarCardNotificacao('Folgas', 'ph-coffee', 'success', folgas) +
+        criarCardNotificacao('C.I.s', 'ph-file-text', 'warning', cis);
 }
 
 function gerarKPIsERanking(dados) {
@@ -436,15 +778,17 @@ function gerarKPIsERanking(dados) {
     const arrayRanking = Object.keys(rankingMap).map(key => { return { nome: key, total: rankingMap[key] }; });
     arrayRanking.sort((a, b) => b.total - a.total);
     const ulRanking = document.getElementById('lista-ranking'); ulRanking.innerHTML = '';
-    const top5 = arrayRanking.slice(0, 5);
     
-    if(top5.length === 0) { ulRanking.innerHTML = '<li><span class="text-light">Nenhuma autorização neste mês.</span></li>'; } 
-    else { top5.forEach((item, index) => { ulRanking.innerHTML += `<li><span><strong>${index + 1}º</strong> ${item.nome}</span><span class="badge-rank">${item.total} req.</span></li>`; }); }
+    // AGORA EXIBE OS 10 MAIORES
+    const top10 = arrayRanking.slice(0, 10);
+    
+    if(top10.length === 0) { ulRanking.innerHTML = '<li><span class="text-light">Nenhuma autorização neste mês.</span></li>'; } 
+    else { top10.forEach((item, index) => { ulRanking.innerHTML += `<li><span><strong>${index + 1}º</strong> ${item.nome}</span><span class="badge-rank">${item.total} req.</span></li>`; }); }
 }
 
 function preencherOpcoesFiltros(dados) {
     const lideres = [...new Set(dados.map(d => d.Lider).filter(l => l))];
-    const motivos = [...new Set(dados.map(d => d.Motivo).filter(m => m))];
+    const motivos = [...new Set(dados.map(d => d.Motivo).filter(m => !['Falta', 'Folga', 'CI'].includes(m) && m))];
     const selLider = document.getElementById('filtro-lider-select'); selLider.innerHTML = '<option value="">Todos</option>';
     lideres.sort().forEach(l => selLider.innerHTML += `<option value="${l}">${l}</option>`);
     const selMotivo = document.getElementById('filtro-motivo-select'); selMotivo.innerHTML = '<option value="">Todos</option>';
@@ -465,10 +809,13 @@ window.aplicarFiltrosRH = function() {
     const btn = document.querySelector('.filter-group').nextElementSibling;
     const txtOrg = btn.innerHTML; btn.innerHTML = 'Filtrando...'; btn.disabled = true;
 
+    // MOSTRA O CARD DOS DADOS DO RELATÓRIO
+    document.getElementById('card-dados-relatorio').classList.remove('hidden');
+
     let dadosFiltrados = dadosGeraisRH.filter(d => {
         let ok = true;
         if (dtIn || dtFim) {
-            const dFmt = extrairDataISO(d.Data_Hora_Pedido);
+            const dFmt = extrairDataISO(d.Data_Hora_Pedido || d.Data);
             if (dtIn && dFmt < dtIn) ok = false;
             if (dtFim && dFmt > dtFim) ok = false;
         }
@@ -490,6 +837,10 @@ window.aplicarFiltrosRH = function() {
         if(val) dadosFiltrados = dadosFiltrados.filter(d => d.Motivo === val);
         renderizarTabelaGeralRH(dadosFiltrados);
     }
+    else if (tipo === 'Falta' || tipo === 'Folga' || tipo === 'CI') {
+        dadosFiltrados = dadosFiltrados.filter(d => d.Motivo === tipo); 
+        renderizarTabelaGeralRH(dadosFiltrados);
+    }
     else if (tipo === 'faltou_entrada') {
         dadosFiltrados = dadosFiltrados.filter(d => d.Status === 'Faltou - Entrada'); renderizarTabelaGeralRH(dadosFiltrados);
     }
@@ -505,17 +856,22 @@ window.aplicarFiltrosRH = function() {
 
 function renderizarTabelaGeralRH(dados) {
     const thead = document.getElementById('thead-relatorio'); const tbody = document.getElementById('tbody-relatorio');
-    thead.innerHTML = `<tr><th>Data/Pedido</th><th>Tipo</th><th>Matrícula</th><th>Colaborador</th><th>Motivo</th><th>Líder</th><th>Status</th><th>Liberação</th><th>Retorno</th></tr>`;
+    
+    // COLUNA NOVA DE OBSERVAÇÃO ADICIONADA AQUI
+    thead.innerHTML = `<tr><th>Data/Pedido</th><th>Tipo</th><th>Matrícula</th><th>Colaborador</th><th>Motivo</th><th>Líder</th><th>Observação</th><th>Status</th><th>Liberação</th><th>Retorno</th></tr>`;
     tbody.innerHTML = '';
-    if(dados.length === 0) return tbody.innerHTML = '<tr><td colspan="9" class="text-center">Nenhum dado encontrado.</td></tr>';
+    
+    if(dados.length === 0) return tbody.innerHTML = '<tr><td colspan="10" class="text-center">Nenhum dado encontrado.</td></tr>';
+    
     dados.reverse().forEach(d => {
         let bClass = 'pend';
         if(d.Status === 'Concluído' || d.Status === 'Saída Confirmada') bClass = 'ok';
         if(d.Status === 'Aguardando Retorno') bClass = 'ret';
         if(d.Status.includes('Faltou') || d.Status === 'Não Retornou') bClass = 'falta';
 
-        const tipoDir = d.Direcao === 'Entrada' ? 'Entrada' : 'Saída';
-        tbody.innerHTML += `<tr><td>${formatarISOparaBR(d.Data_Hora_Pedido)}</td><td><strong>${tipoDir}</strong></td><td>${d.Matricula}</td><td>${d.Nome}</td><td>${d.Motivo}</td><td>${d.Lider}</td><td><span class="status-badge ${bClass}">${d.Status}</span></td><td>${formatarISOparaBR(d.Data_Hora_Saida)}</td><td style="${d.Status.includes('Faltou') || d.Status === 'Não Retornou' ? 'color:red; font-weight:bold;' : ''}">${formatarISOparaBR(d.Data_Hora_Retorno)}</td></tr>`;
+        const tipoDir = d.Direcao === 'Entrada' ? 'Entrada' : (d.Direcao === 'Lançamento RH' ? 'Reg. Interno' : 'Saída');
+        
+        tbody.innerHTML += `<tr><td>${formatarISOparaBR(d.Data_Hora_Pedido)}</td><td><strong>${tipoDir}</strong></td><td>${d.Matricula}</td><td>${d.Nome}</td><td>${d.Motivo}</td><td>${d.Lider}</td><td>${d.Observacao || '-'}</td><td><span class="status-badge ${bClass}">${d.Status}</span></td><td>${formatarISOparaBR(d.Data_Hora_Saida)}</td><td style="${d.Status.includes('Faltou') || d.Status === 'Não Retornou' ? 'color:red; font-weight:bold;' : ''}">${formatarISOparaBR(d.Data_Hora_Retorno)}</td></tr>`;
     });
 }
 
