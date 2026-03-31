@@ -1,23 +1,27 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Compescal | Autorização</title>
-
-    <link rel="icon" href="Logo Compescal.jpg" type="image/jpeg">
-    <link rel="apple-touch-icon" href="Logo Compescal.jpg">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#0F2C59">
-
-    <link rel="stylesheet" href="styles.css">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-</head>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <title> Compescal | Autorização</title>
+    
+        <link rel="icon" href="Logo Compescal.jpg" type="image/jpeg">
+        <link rel="apple-touch-icon" href="Logo Compescal.jpg">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="theme-color" content="#0F2C59">
+    
+        <link rel="stylesheet" href="styles.css">
+        <script src="https://unpkg.com/@phosphor-icons/web"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+        <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+        
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+        <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
+    </head>
 <body>
     <div id="view-login" class="login-container">
         <div class="login-card">
@@ -27,7 +31,7 @@
                 <div class="input-group"><label>Usuário</label><input type="text" id="login-user" required></div>
                 <div class="input-group"><label>Senha</label><input type="password" id="login-senha" required></div>
                 <button type="submit" class="btn btn-primary btn-block">Entrar</button>
-                <div class="version-control">Versão: v2.0.0 Enterprise</div>
+                <div class="version-control">Versão: v2.3.0 Enterprise</div>
             </form>
         </div>
     </div>
@@ -52,13 +56,21 @@
                     <p id="lider-phrase" class="greeting-subtitle">Preparado para mais um dia de sucesso?</p>
                 </div>
 
-                <div class="card">
-                    <div id="selecao-direcao" style="display: flex; gap: 10px; margin-bottom: 0.5rem;">
+                <div class="card" id="selecao-direcao">
+                    <div style="display: flex; gap: 10px; margin-bottom: 0.5rem;">
                         <button class="btn btn-danger" style="flex:1; padding: 1.5rem 1rem;" onclick="iniciarFormulario('Saída')"><i class="ph ph-sign-out" style="font-size:1.5rem;"></i> Autorizar Saída</button>
                         <button class="btn btn-primary" style="flex:1; padding: 1.5rem 1rem;" onclick="iniciarFormulario('Entrada')"><i class="ph ph-sign-in" style="font-size:1.5rem;"></i> Autorizar Entrada</button>
                     </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-secondary mt-1" style="flex:1;" onclick="abrirTela('view-falta')"><i class="ph ph-user-minus"></i> Lançar Falta</button>
+                        <button class="btn btn-secondary mt-1" style="flex:1;" onclick="abrirTela('view-folga')"><i class="ph ph-coffee"></i> Lançar Folga</button>
+                        <button class="btn btn-secondary mt-1" style="flex:1;" onclick="abrirTela('view-ci')"><i class="ph ph-file-text"></i> C.I. (Comunicação)</button>
+                    </div>
+                    <button class="btn btn-dark btn-block mt-1" onclick="abrirHistoricoLider()"><i class="ph ph-clock-counter-clockwise"></i> Meu Histórico de Lançamentos</button>
+                </div>
 
-                    <form id="form-autorizacao" class="hidden">
+                <div class="card hidden" id="form-autorizacao-box">
+                    <form id="form-autorizacao">
                         <h4 id="titulo-form" style="margin-bottom: 1rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Preenchendo...</h4>
                         
                         <div class="input-group">
@@ -89,6 +101,98 @@
                         </div>
                     </form>
                 </div>
+
+                <div id="view-falta" class="card hidden">
+                    <h3 class="text-primary mb-1"><i class="ph ph-user-minus"></i> Registrar Falta</h3>
+                    <form id="form-falta">
+                        <div class="input-group">
+                            <label>Matrícula do Colaborador</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="number" id="mat-falta" required placeholder="Ex: 1234">
+                                <button type="button" class="btn btn-primary" onclick="buscarColaborador('mat-falta', 'nome-falta')"><i class="ph ph-magnifying-glass"></i></button>
+                            </div>
+                        </div>
+                        <div class="input-group"><label>Nome do Colaborador</label><input type="text" id="nome-falta" readonly required class="readonly"></div>
+                        <div class="input-group"><label>Data da Falta</label><input type="date" id="data-falta" required></div>
+                        <div class="input-group"><label>Motivo / Observação</label><input type="text" id="obs-falta" placeholder="Justificativa (Opcional)"></div>
+                        <div style="display: flex; gap: 10px; margin-top: 1rem;">
+                            <button type="button" class="btn btn-secondary" style="flex:1;" onclick="voltarParaMenu()">Voltar</button>
+                            <button type="submit" class="btn btn-success" style="flex:2;"><i class="ph ph-check-circle"></i> Salvar Falta</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="view-folga" class="card hidden">
+                    <h3 class="text-primary mb-1"><i class="ph ph-coffee"></i> Registrar Folga</h3>
+                    <form id="form-folga">
+                        <div class="input-group">
+                            <label>Matrícula do Colaborador</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="number" id="mat-folga" required placeholder="Ex: 1234">
+                                <button type="button" class="btn btn-primary" onclick="buscarColaborador('mat-folga', 'nome-folga')"><i class="ph ph-magnifying-glass"></i></button>
+                            </div>
+                        </div>
+                        <div class="input-group"><label>Nome do Colaborador</label><input type="text" id="nome-folga" readonly required class="readonly"></div>
+                        <div class="input-group">
+                            <label>Data da Folga (Permite Selecionar Múltiplas)</label>
+                            <input type="text" id="data-folga" required placeholder="Selecione as datas" style="background-color: white;">
+                        </div>
+                        <div class="input-group">
+                            <label>Tipo de Folga</label>
+                            <select id="tipo-folga" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border); border-radius: 8px;">
+                                <option value="Banco de Horas">Banco de Horas</option>
+                                <option value="Compensatória">Compensatória</option>
+                                <option value="Premiação">Premiação</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 1rem;">
+                            <button type="button" class="btn btn-secondary" style="flex:1;" onclick="voltarParaMenu()">Voltar</button>
+                            <button type="submit" class="btn btn-success" style="flex:2;"><i class="ph ph-check-circle"></i> Salvar Folga</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="view-ci" class="card hidden">
+                    <h3 class="text-primary mb-1"><i class="ph ph-file-text"></i> Emitir C.I.</h3>
+                    <form id="form-ci">
+                        <div class="input-group">
+                            <label>Matrícula do Colaborador</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="number" id="mat-ci" required placeholder="Ex: 1234">
+                                <button type="button" class="btn btn-primary" onclick="buscarColaborador('mat-ci', 'nome-ci')"><i class="ph ph-magnifying-glass"></i></button>
+                            </div>
+                        </div>
+                        <div class="input-group"><label>Nome do Colaborador</label><input type="text" id="nome-ci" readonly required class="readonly"></div>
+                        <div class="input-group"><label>Data da C.I.</label><input type="date" id="data-ci" required></div>
+                        <div class="input-group"><label>Assunto / Ocorrência</label><textarea id="assunto-ci" required rows="3" style="width:100%; border:1px solid var(--border); border-radius:8px; padding:10px;"></textarea></div>
+                        <div style="display: flex; gap: 10px; margin-top: 1rem;">
+                            <button type="button" class="btn btn-secondary" style="flex:1;" onclick="voltarParaMenu()">Voltar</button>
+                            <button type="submit" class="btn btn-success" style="flex:2;"><i class="ph ph-paper-plane-tilt"></i> Enviar C.I.</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="view-historico-lider" class="card hidden">
+                    <h3 class="text-primary mb-1"><i class="ph ph-list-magnifying-glass"></i> Histórico de Lançamentos</h3>
+                    
+                    <div style="background: var(--bg); padding: 15px; border-radius: 8px; margin-bottom: 1rem; border: 1px solid var(--border);">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="input-group"><label>Período De:</label><input type="date" id="filtro-hist-inicio"></div>
+                            <div class="input-group"><label>Período Até:</label><input type="date" id="filtro-hist-fim"></div>
+                        </div>
+                        <div class="input-group mt-1">
+                            <label>Matrícula do Colaborador (Opcional):</label>
+                            <input type="number" id="filtro-hist-mat" placeholder="Ex: 1234">
+                        </div>
+                        <button class="btn btn-primary btn-block mt-1" onclick="filtrarHistoricoLider()"><i class="ph ph-funnel"></i> Buscar Lançamentos</button>
+                    </div>
+
+                    <div id="painel-historico-lider" style="display: flex; flex-direction: column; gap: 10px;">
+                    </div>
+
+                    <button type="button" class="btn btn-secondary btn-block mt-1" onclick="voltarParaMenu()">Voltar ao Menu Principal</button>
+                </div>
+
             </section>
 
             <section id="tela-portaria" class="view-section hidden">
@@ -103,41 +207,61 @@
             <section id="tela-rh" class="view-section hidden">
                 <button class="btn btn-secondary btn-block mb-1" onclick="iniciarRH()"><i class="ph ph-arrows-clockwise"></i> Atualizar Tela</button>
                 
+                <div class="card mb-1" style="border-top: 4px solid var(--primary);">
+                    <h3 class="text-primary" style="margin-bottom: 10px;"><i class="ph ph-bell-ringing"></i> Movimentações de Hoje (Tempo Real)</h3>
+                    <div id="painel-notificacoes-rh" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    </div>
+                </div>
+
                 <div class="kpi-grid">
                     <div class="kpi-card"><span>Autorizações Hoje</span><h3 id="kpi-hoje">0</h3></div>
                     <div class="kpi-card highlight"><span>Autorizações no Mês</span><h3 id="kpi-mes">0</h3></div>
                 </div>
 
                 <div class="card mt-1">
-                    <h3><i class="ph ph-trophy"></i> Ranking do Mês (Mais Saídas)</h3>
-                    <ul id="lista-ranking" class="ranking-list"></ul>
-                </div>
-
-                <div class="card mt-1">
-                    <h3><i class="ph ph-funnel"></i> Relatórios Avançados</h3>
-                    <div class="filter-group">
-                        <div class="input-group"><label>De (Data):</label><input type="date" id="filtro-data-inicio"></div>
-                        <div class="input-group"><label>Até (Data):</label><input type="date" id="filtro-data-fim"></div>
-                        <div class="input-group" style="grid-column: 1 / -1;">
-                            <label>Tipo de Relatório:</label>
-                            <select id="tipo-relatorio" onchange="toggleFiltrosRH()">
-                                <option value="geral">Relatório Geral (Todos)</option>
-                                <option value="lider">Filtro por Líder</option>
-                                <option value="colaborador">Filtro por Colaborador</option>
-                                <option value="motivo">Filtro por Motivo</option>
-                                <option value="faltou_entrada">Faltou - Liberação de Entrada</option>
-                                <option value="faltou_saida">Faltou - Liberação de Saída</option>
-                                <option value="ranking">Ranking Acumulado por Colaborador</option>
-                            </select>
-                        </div>
-                        <div class="input-group hidden" id="box-filtro-lider" style="grid-column: 1 / -1;"><label>Líder:</label><select id="filtro-lider-select"></select></div>
-                        <div class="input-group hidden" id="box-filtro-colab" style="grid-column: 1 / -1;"><label>Nome ou Matrícula:</label><input type="text" id="filtro-colab-input"></div>
-                        <div class="input-group hidden" id="box-filtro-motivo" style="grid-column: 1 / -1;"><label>Motivo:</label><select id="filtro-motivo-select"></select></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3><i class="ph ph-trophy"></i> Ranking do Mês (Mais Saídas)</h3>
+                        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('lista-ranking-container', this)"><i class="ph ph-minus"></i></button>
                     </div>
-                    <button class="btn btn-primary btn-block mt-1" onclick="aplicarFiltrosRH()"><i class="ph ph-magnifying-glass"></i> Gerar Relatório</button>
+                    <div id="lista-ranking-container">
+                        <ul id="lista-ranking" class="ranking-list"></ul>
+                    </div>
                 </div>
 
                 <div class="card mt-1">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3><i class="ph ph-funnel"></i> Relatórios Avançados</h3>
+                        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('filtros-container', this)"><i class="ph ph-minus"></i></button>
+                    </div>
+                    
+                    <div id="filtros-container">
+                        <div class="filter-group">
+                            <div class="input-group"><label>De (Data):</label><input type="date" id="filtro-data-inicio"></div>
+                            <div class="input-group"><label>Até (Data):</label><input type="date" id="filtro-data-fim"></div>
+                            <div class="input-group" style="grid-column: 1 / -1;">
+                                <label>Tipo de Relatório:</label>
+                                <select id="tipo-relatorio" onchange="toggleFiltrosRH()">
+                                    <option value="geral">Relatório Geral (Todos)</option>
+                                    <option value="lider">Filtro por Líder</option>
+                                    <option value="colaborador">Filtro por Colaborador</option>
+                                    <option value="motivo">Filtro por Motivo</option>
+                                    <option value="Falta">Lançamento de Falta</option>
+                                    <option value="Folga">Lançamento de Folga</option>
+                                    <option value="CI">C.I. Comunicação</option>
+                                    <option value="faltou_entrada">Faltou - Liberação de Entrada</option>
+                                    <option value="faltou_saida">Faltou - Liberação de Saída</option>
+                                    <option value="ranking">Ranking Acumulado por Colaborador</option>
+                                </select>
+                            </div>
+                            <div class="input-group hidden" id="box-filtro-lider" style="grid-column: 1 / -1;"><label>Líder:</label><select id="filtro-lider-select"></select></div>
+                            <div class="input-group hidden" id="box-filtro-colab" style="grid-column: 1 / -1;"><label>Nome ou Matrícula:</label><input type="text" id="filtro-colab-input"></div>
+                            <div class="input-group hidden" id="box-filtro-motivo" style="grid-column: 1 / -1;"><label>Motivo:</label><select id="filtro-motivo-select"></select></div>
+                        </div>
+                        <button class="btn btn-primary btn-block mt-1" onclick="aplicarFiltrosRH()"><i class="ph ph-magnifying-glass"></i> Gerar Relatório</button>
+                    </div>
+                </div>
+
+                <div class="card mt-1 hidden" id="card-dados-relatorio">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 1rem;">
                         <h3 id="titulo-tabela-rh"><i class="ph ph-table"></i> Dados do Relatório</h3>
                         <div class="export-buttons">
@@ -191,5 +315,6 @@
 
     <div id="toast-container"></div>
     <script src="script.js"></script>
+    <audio id="som-campainha" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 </body>
 </html>
