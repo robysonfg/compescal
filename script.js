@@ -3,7 +3,7 @@
 // ==========================================
 const API_URL = "https://script.google.com/macros/s/AKfycbzoXv41yRgJEkYIAPRzDvRPp5aRh6PTj5TzbfaOTrKzT_yUwHn3xPtMB4F5TSlZS2wG9w/exec"; // <--- ATENÇÃO: COLE SUA URL AQUI
 let ultimoTotalPortaria = 0; 
-let intervaloPortaria = null; // Motor de Atualização Silenciosa
+let intervaloPortaria = null; 
 let usuarioLogado = null;
 let dadosGeraisRH = []; 
 let direcaoAtual = ""; 
@@ -47,7 +47,6 @@ function extrairDataISO(dataBRouISO) {
     return String(dataBRouISO);
 }
 
-// Minimizar/Maximizar blocos no RH
 window.toggleVisibilidade = function(idContainer, btnElement) {
     const el = document.getElementById(idContainer);
     if (el.classList.contains('hidden')) {
@@ -192,24 +191,39 @@ async function iniciarLider() {
     if(document.getElementById('data-falta')) document.getElementById('data-falta').value = hoje;
     if(document.getElementById('data-ci')) document.getElementById('data-ci').value = hoje;
 
-    // INICIALIZANDO O FLATPICKR COM PADRÃO BR (DD/MM/YYYY) PARA EXIBIÇÃO
     if(document.getElementById('data-folga')) {
         flatpickr("#data-folga", {
             mode: "multiple",
-            dateFormat: "Y-m-d", // Salva no código como padrão internacional
-            altInput: true,      // Cria um input falso para exibir bonitinho
-            altFormat: "d/m/Y",  // Exibe para o usuário como Dia/Mês/Ano
+            dateFormat: "Y-m-d", 
+            altInput: true,      
+            altFormat: "d/m/Y",  
             locale: "pt",
             defaultDate: [hoje]
+        });
+    }
+
+    // REGRA 2: Observação obrigatória se Motivo for 'Outros'
+    const selMotivo = document.getElementById('motivo-saida');
+    if (selMotivo) {
+        selMotivo.addEventListener('change', function() {
+            const obs = document.getElementById('obs-saida');
+            if (this.value === 'Outros') {
+                obs.required = true;
+                obs.placeholder = "Obrigatório detalhar o motivo 'Outros'";
+                obs.style.border = "1px solid var(--accent)";
+            } else {
+                obs.required = false;
+                obs.placeholder = "(Opcional)";
+                obs.style.border = "1px solid var(--border)";
+            }
         });
     }
 
     try {
         const res = await fetch(`${API_URL}?tabela=Motivos`);
         const json = await res.json();
-        const select = document.getElementById('motivo-saida');
-        select.innerHTML = '<option value="">Selecione...</option>';
-        if(json.dados) json.dados.forEach(m => select.innerHTML += `<option value="${m.Motivo}">${m.Motivo}</option>`);
+        selMotivo.innerHTML = '<option value="">Selecione...</option>';
+        if(json.dados) json.dados.forEach(m => selMotivo.innerHTML += `<option value="${m.Motivo}">${m.Motivo}</option>`);
 
         const resLanc = await fetch(`${API_URL}?tabela=Lancamentos`);
         const jsonLanc = await resLanc.json();
@@ -339,13 +353,17 @@ function configurarFormularioLider(idForm, tipoLancamento) {
         e.preventDefault();
         
         const sufixo = idForm.split('-')[1]; 
-        const matricula = document.getElementById(`mat-${sufixo}`).value;
+        const matRaw = document.getElementById(`mat-${sufixo}`).value;
         const dataInputRaw = document.getElementById(`data-${sufixo}`).value;
-        const nome = document.getElementById(`nome-${sufixo}`).value;
+        const nomeRaw = document.getElementById(`nome-${sufixo}`).value;
         
-        if(!nome) return showToast("Busque a matrícula primeiro.", "erro");
+        if(!nomeRaw || nomeRaw === 'Buscando...') return showToast("Aguarde ou faça a busca das matrículas primeiro.", "erro");
 
-        // Transforma o texto do Flatpickr (Ex: "2026-03-31, 2026-04-01") em Array real
+        // REGRA 1: Separa as múltiplas matrículas e os nomes
+        const matriculasArray = matRaw.split(',').map(m => m.trim()).filter(m => m);
+        const nomesArray = nomeRaw.split('/').map(n => n.trim()).filter(n => n);
+        
+        // Separa as múltiplas datas (No caso da Folga)
         const datasArray = dataInputRaw.split(',').map(d => d.trim()).filter(d => d);
 
         const btn = form.querySelector('button[type="submit"]');
@@ -358,32 +376,39 @@ function configurarFormularioLider(idForm, tipoLancamento) {
         let salvos = 0;
         let erros = 0;
 
-        for (const dataAtual of datasArray) {
-            if (verificaDuplicidade(matricula, dataAtual, tipoLancamento)) {
-                showToast(`Atenção: Já existe ${tipoLancamento} na data ${formatarISOparaBR(dataAtual)}!`, 'erro');
-                erros++;
-                continue; 
-            }
-            
-            const dados = [
-                formatarISOparaBR(dataHoraInputLocal()), 
-                matricula,                               
-                nome,                                    
-                tipoLancamento,                          
-                usuarioLogado.nome,                      
-                observacao,                              
-                formatarISOparaBR(dataAtual),                 
-                'Não',                                   
-                '',                                      
-                'Lançamento RH'                          
-            ];
+        // Loop sobre cada Colaborador digitado
+        for (let i = 0; i < matriculasArray.length; i++) {
+            const matAtual = matriculasArray[i];
+            const nomeAtual = nomesArray[i] || 'Nome não localizado';
 
-            try {
-                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ acao: 'nova_autorizacao', dados: dados }) });
-                const dataRes = await res.json();
-                if(dataRes.status === 'sucesso') salvos++;
-                else { showToast(dataRes.mensagem, "erro"); erros++; }
-            } catch(err) { showToast("Falha na conexão.", "erro"); erros++; }
+            // Loop sobre cada Data selecionada
+            for (const dataAtual of datasArray) {
+                if (verificaDuplicidade(matAtual, dataAtual, tipoLancamento)) {
+                    showToast(`Atenção: Já existe ${tipoLancamento} para ${matAtual} na data ${formatarISOparaBR(dataAtual)}!`, 'erro');
+                    erros++;
+                    continue; 
+                }
+                
+                const dados = [
+                    formatarISOparaBR(dataHoraInputLocal()), 
+                    matAtual,                               
+                    nomeAtual,                                    
+                    tipoLancamento,                          
+                    usuarioLogado.nome,                      
+                    observacao,                              
+                    formatarISOparaBR(dataAtual),                 
+                    'Não',                                   
+                    '',                                      
+                    'Lançamento RH'                          
+                ];
+
+                try {
+                    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ acao: 'nova_autorizacao', dados: dados }) });
+                    const dataRes = await res.json();
+                    if(dataRes.status === 'sucesso') salvos++;
+                    else { showToast(dataRes.mensagem, "erro"); erros++; }
+                } catch(err) { showToast("Falha na conexão.", "erro"); erros++; }
+            }
         }
 
         if (salvos > 0) {
@@ -398,7 +423,7 @@ function configurarFormularioLider(idForm, tipoLancamento) {
             }
 
             voltarParaMenu();
-            iniciarLider(); // Recarrega os dados em background
+            iniciarLider(); // Atualiza os dados background
         }
 
         btn.innerHTML = txtOrg; 
@@ -434,6 +459,11 @@ window.iniciarFormulario = function(tipo) {
     document.getElementById('titulo-form').innerHTML = tipo === 'Saída' ? `<i class="ph ph-sign-out"></i> Autorizando Saída` : `<i class="ph ph-sign-in"></i> Autorizando Entrada`;
     document.getElementById('label-prev-acao').textContent = tipo === 'Saída' ? 'Prev. Saída' : 'Prev. Chegada';
     document.getElementById('prev-acao').value = dataHoraInputLocal();
+    
+    // Reseta validações visuais
+    const obs = document.getElementById('obs-saida');
+    obs.required = false; obs.placeholder = "(Opcional)"; obs.style.border = "1px solid var(--border)";
+
     const boxRetorno = document.getElementById('box-vai-retornar');
     if(tipo === 'Entrada') { boxRetorno.classList.add('hidden'); document.getElementById('vai-retornar').value = 'Não'; } 
     else { boxRetorno.classList.remove('hidden'); }
@@ -453,28 +483,43 @@ window.togglePrevisaoRetorno = function() {
     else { box.classList.add('hidden'); input.required = false; input.value = ''; }
 }
 
+// BUSCA INTELIGENTE (SUPORTA MÚLTIPLAS MATRÍCULAS SEPARADAS POR VÍRGULA)
 window.buscarColaborador = async function(idInputMatricula, idInputNome) {
-    const mat = document.getElementById(idInputMatricula).value;
-    if(!mat) return;
+    const matRaw = document.getElementById(idInputMatricula).value;
+    if(!matRaw) return;
+    
+    const mats = matRaw.split(',').map(m => m.trim()).filter(m => m);
     
     const aviso = document.getElementById('aviso-mat');
     if(aviso) { aviso.textContent = "Buscando..."; aviso.classList.remove('hidden'); aviso.classList.replace('text-danger', 'text-light'); }
     
     const inputNome = document.getElementById(idInputNome);
+    inputNome.value = 'Buscando...';
     
-    try {
-        const res = await fetch(`${API_URL}?acao=buscar_colaborador&matricula=${mat}`);
-        const data = await res.json();
-        if(data.status === 'sucesso') { 
-            inputNome.value = data.dados.nome; 
-            if(aviso) aviso.classList.add('hidden'); 
-        } else { 
-            inputNome.value = ''; 
-            if(aviso) { aviso.textContent = "Não encontrada."; aviso.classList.replace('text-light', 'text-danger'); }
-            else { showToast("Matrícula não encontrada", "erro"); }
+    let nomesValidos = [];
+    let erros = [];
+
+    await Promise.all(mats.map(async (mat) => {
+        try {
+            const res = await fetch(`${API_URL}?acao=buscar_colaborador&matricula=${mat}`);
+            const data = await res.json();
+            if(data.status === 'sucesso') { 
+                nomesValidos.push(data.dados.nome);
+            } else { 
+                erros.push(mat);
+            }
+        } catch(e) { 
+            erros.push(mat);
         }
-    } catch(e) { 
-        if(aviso) { aviso.textContent = "Erro na busca."; aviso.classList.replace('text-light', 'text-danger'); }
+    }));
+
+    inputNome.value = nomesValidos.join(' / ');
+    
+    if(erros.length > 0) {
+        showToast(`Matrículas não encontradas: ${erros.join(', ')}`, 'erro');
+        if(aviso) { aviso.textContent = "Erro em algumas matrículas."; aviso.classList.replace('text-light', 'text-danger'); }
+    } else {
+        if(aviso) aviso.classList.add('hidden');
     }
 }
 
@@ -484,7 +529,7 @@ document.getElementById('mat-colaborador').addEventListener('blur', () => buscar
 document.getElementById('form-autorizacao').addEventListener('submit', async (e) => {
     e.preventDefault();
     const nome = document.getElementById('nome-colaborador').value;
-    if(!nome) return showToast("Busque a matrícula primeiro.", "erro");
+    if(!nome || nome === 'Buscando...') return showToast("Aguarde ou faça a busca da matrícula primeiro.", "erro");
     
     const btn = e.target.querySelector('button[type="submit"]');
     const txtOrg = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Autorizando...'; btn.disabled = true;
@@ -566,11 +611,10 @@ async function iniciarPortaria() {
     if (intervaloPortaria) clearInterval(intervaloPortaria);
     
     intervaloPortaria = setInterval(() => {
-        // Só atualiza se a tela da portaria for a tela visível
         if (!document.getElementById('tela-portaria').classList.contains('hidden')) {
-            carregarPortaria(true); // O parâmetro 'true' faz a atualização silenciosa
+            carregarPortaria(true); 
         }
-    }, 15000); // 15 segundos
+    }, 15000); 
 }
 
 async function carregarPortaria(silencioso = false) {
@@ -579,7 +623,6 @@ async function carregarPortaria(silencioso = false) {
     const listaRetorno = document.getElementById('lista-portaria-retorno');
     const listaHistorico = document.getElementById('lista-historico-portaria');
     
-    // Só exibe a animação gigante de carregamento se o usuário clicou no botão "Atualizar"
     if (!silencioso) {
         listaSaida.innerHTML = '<div style="text-align:center;"><i class="ph ph-spinner ph-spin" style="font-size:2rem;"></i></div>';
         listaEntrada.innerHTML = ''; listaRetorno.innerHTML = ''; listaHistorico.innerHTML = '';
@@ -719,7 +762,6 @@ function carregarNotificacoesHoje(dados) {
     const hojeISO = new Date().toISOString().split('T')[0]; 
     let saidas = [], entradas = [], faltas = [], folgas = [], cis = [];
 
-    // Checa todos os dados buscando os registros válidos para o dia de HOJE
     dados.forEach(d => {
         const d1 = extrairDataISO(d.Data_Hora_Pedido);
         const d2 = extrairDataISO(d.Previsao_Saida);
@@ -747,12 +789,16 @@ function carregarNotificacoesHoje(dados) {
             html += `<p style="color: var(--text-light); text-align: center; padding: 10px 0;">Nenhum registro hoje.</p>`;
         } else {
             lista.forEach(item => {
-                const infoExtra = ['Falta', 'Folga', 'CI'].includes(item.Motivo) ? item.Observacao : item.Motivo;
+                const isFormRH = ['Falta', 'Folga', 'CI'].includes(item.Motivo);
+                const infoPrincipal = isFormRH ? item.Observacao : item.Motivo;
+                const obsTag = (!isFormRH && item.Observacao) ? `<div style="font-size:0.75rem; color:var(--text-light); margin-top:3px;"><i class="ph ph-chat-text"></i> <i>${item.Observacao}</i></div>` : '';
+
                 html += `
                 <div style="padding: 6px 0; border-bottom: 1px dashed var(--border);">
                     <strong style="color: var(--primary);">${item.Nome}</strong> <span style="color: var(--text-light); font-size: 0.7rem;">(${item.Matricula})</span><br>
                     <span style="color: var(--text-light);">Líder: ${item.Lider}</span><br>
-                    <span style="color: var(--dark); font-weight: 500;">${infoExtra || '-'}</span>
+                    <span style="color: var(--dark); font-weight: 500;">${infoPrincipal || '-'}</span>
+                    ${obsTag}
                 </div>`;
             });
         }
@@ -768,30 +814,53 @@ function carregarNotificacoesHoje(dados) {
         criarCardNotificacao('C.I.s', 'ph-file-text', 'warning', cis);
 }
 
+// 7 E 8: RANKINGS SEPARADOS (SAÍDAS E ENTRADAS)
 function gerarKPIsERanking(dados) {
     const hojeISO = new Date().toISOString().split('T')[0]; 
     const mesAtualISO = hojeISO.substring(0,7); 
-    let contHoje = 0, contMes = 0; let rankingMap = {};
+    let contHoje = 0, contMes = 0; 
+    
+    let rankingSaidas = {};
+    let rankingEntradas = {};
+
     dados.forEach(d => {
         const dataPedidoISO = extrairDataISO(d.Data_Hora_Pedido);
         if(dataPedidoISO === hojeISO) contHoje++;
         if(dataPedidoISO.startsWith(mesAtualISO)) {
             contMes++;
             const chaveColab = `${d.Matricula} - ${d.Nome}`;
-            rankingMap[chaveColab] = (rankingMap[chaveColab] || 0) + 1;
+            
+            // Conta especificamente Saída
+            if(d.Direcao === 'Saída') {
+                rankingSaidas[chaveColab] = (rankingSaidas[chaveColab] || 0) + 1;
+            }
+            // Conta especificamente Entrada
+            else if(d.Direcao === 'Entrada') {
+                rankingEntradas[chaveColab] = (rankingEntradas[chaveColab] || 0) + 1;
+            }
         }
     });
+    
     document.getElementById('kpi-hoje').textContent = contHoje;
     document.getElementById('kpi-mes').textContent = contMes;
     
-    const arrayRanking = Object.keys(rankingMap).map(key => { return { nome: key, total: rankingMap[key] }; });
-    arrayRanking.sort((a, b) => b.total - a.total);
-    const ulRanking = document.getElementById('lista-ranking'); ulRanking.innerHTML = '';
+    // RENDERIZA SAÍDAS (TOP 10)
+    const arraySaidas = Object.keys(rankingSaidas).map(key => { return { nome: key, total: rankingSaidas[key] }; });
+    arraySaidas.sort((a, b) => b.total - a.total);
+    const ulSaidas = document.getElementById('lista-ranking-saida'); ulSaidas.innerHTML = '';
+    const top10Saidas = arraySaidas.slice(0, 10); 
     
-    const top10 = arrayRanking.slice(0, 10); // Exibindo Top 10 agora
+    if(top10Saidas.length === 0) { ulSaidas.innerHTML = '<li><span class="text-light">Nenhuma saída neste mês.</span></li>'; } 
+    else { top10Saidas.forEach((item, index) => { ulSaidas.innerHTML += `<li><span><strong>${index + 1}º</strong> ${item.nome}</span><span class="badge-rank">${item.total} req.</span></li>`; }); }
+
+    // RENDERIZA ENTRADAS (TOP 10)
+    const arrayEntradas = Object.keys(rankingEntradas).map(key => { return { nome: key, total: rankingEntradas[key] }; });
+    arrayEntradas.sort((a, b) => b.total - a.total);
+    const ulEntradas = document.getElementById('lista-ranking-entrada'); ulEntradas.innerHTML = '';
+    const top10Entradas = arrayEntradas.slice(0, 10); 
     
-    if(top10.length === 0) { ulRanking.innerHTML = '<li><span class="text-light">Nenhuma autorização neste mês.</span></li>'; } 
-    else { top10.forEach((item, index) => { ulRanking.innerHTML += `<li><span><strong>${index + 1}º</strong> ${item.nome}</span><span class="badge-rank">${item.total} req.</span></li>`; }); }
+    if(top10Entradas.length === 0) { ulEntradas.innerHTML = '<li><span class="text-light">Nenhuma entrada neste mês.</span></li>'; } 
+    else { top10Entradas.forEach((item, index) => { ulEntradas.innerHTML += `<li><span><strong>${index + 1}º</strong> ${item.nome}</span><span class="badge-rank" style="background:var(--primary);">${item.total} req.</span></li>`; }); }
 }
 
 function preencherOpcoesFiltros(dados) {
@@ -854,6 +923,7 @@ window.aplicarFiltrosRH = function() {
     else if (tipo === 'faltou_saida') {
         dadosFiltrados = dadosFiltrados.filter(d => d.Status === 'Faltou - Saída' || d.Status === 'Não Retornou'); renderizarTabelaGeralRH(dadosFiltrados);
     }
+    // RANKING DA TABELA INFERIOR GERAL
     else if (tipo === 'ranking') { renderizarTabelaRankingRH(dadosFiltrados); } 
     else { renderizarTabelaGeralRH(dadosFiltrados); }
     
