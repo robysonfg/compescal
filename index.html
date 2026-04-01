@@ -17,7 +17,7 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
         <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-
+        
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
         <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
         <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
@@ -76,7 +76,7 @@
                         <div class="input-group">
                             <label>Matrícula (Código)</label>
                             <div style="display: flex; gap: 10px;">
-                                <input type="number" id="mat-colaborador" required placeholder="Digite e clique na lupa ->">
+                                <input type="text" id="mat-colaborador" required placeholder="Digite e clique na lupa ->">
                                 <button type="button" id="btn-buscar-mat" class="btn btn-secondary"><i class="ph ph-magnifying-glass"></i></button>
                             </div>
                             <small id="aviso-mat" class="text-danger hidden">Buscando...</small>
@@ -84,7 +84,7 @@
                         <div class="input-group"><label>Nome Completo</label><input type="text" id="nome-colaborador" readonly class="readonly"></div>
                         <div class="input-group"><label>Motivo</label><select id="motivo-saida" required><option value="">Selecione...</option></select></div>
                         
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
                             <div class="input-group"><label id="label-prev-acao">Prev. Saída</label><input type="datetime-local" id="prev-acao" required></div>
                             <div class="input-group" id="box-vai-retornar">
                                 <label>Vai Retornar?</label>
@@ -93,7 +93,7 @@
                         </div>
 
                         <div class="input-group hidden" id="box-prev-retorno"><label>Prev. Retorno</label><input type="datetime-local" id="prev-retorno"></div>
-                        <div class="input-group"><label>Observação (Obrigatório)</label><textarea id="obs-saida" rows="2"></textarea></div>
+                        <div class="input-group"><label>Observação</label><textarea id="obs-saida" rows="2" placeholder="(Opcional)"></textarea></div>
                         
                         <div style="display: flex; gap: 10px; margin-top: 1rem;">
                             <button type="button" class="btn btn-secondary" onclick="voltarSelecao()" style="flex:1;"><i class="ph ph-arrow-left"></i> Voltar</button>
@@ -106,15 +106,15 @@
                     <h3 class="text-primary mb-1"><i class="ph ph-user-minus"></i> Registrar Falta</h3>
                     <form id="form-falta">
                         <div class="input-group">
-                            <label>Matrícula do Colaborador</label>
+                            <label>Matrícula do Colaborador (Ex: 123, 456)</label>
                             <div style="display: flex; gap: 10px;">
-                                <input type="number" id="mat-falta" required placeholder="Ex: 1234">
+                                <input type="text" id="mat-falta" required placeholder="Ex: 1234, 5678">
                                 <button type="button" class="btn btn-primary" onclick="buscarColaborador('mat-falta', 'nome-falta')"><i class="ph ph-magnifying-glass"></i></button>
                             </div>
                         </div>
                         <div class="input-group"><label>Nome do Colaborador</label><input type="text" id="nome-falta" readonly required class="readonly"></div>
                         <div class="input-group"><label>Data da Falta</label><input type="date" id="data-falta" required></div>
-                        <div class="input-group"><label>Motivo / Observação</label><input type="text" id="obs-falta" placeholder="Justificativa (Obrigatório)"></div>
+                        <div class="input-group"><label>Motivo / Observação</label><input type="text" id="obs-falta" placeholder="Justificativa (Obrigatória)" required></div>
                         <div style="display: flex; gap: 10px; margin-top: 1rem;">
                             <button type="button" class="btn btn-secondary" style="flex:1;" onclick="voltarParaMenu()">Voltar</button>
                             <button type="submit" class="btn btn-success" style="flex:2;"><i class="ph ph-check-circle"></i> Salvar Falta</button>
@@ -126,9 +126,9 @@
                     <h3 class="text-primary mb-1"><i class="ph ph-coffee"></i> Registrar Folga</h3>
                     <form id="form-folga">
                         <div class="input-group">
-                            <label>Matrícula do Colaborador</label>
+                            <label>Matrícula do Colaborador (Ex: 123, 456)</label>
                             <div style="display: flex; gap: 10px;">
-                                <input type="number" id="mat-folga" required placeholder="Ex: 1234">
+                                <input type="text" id="mat-folga" required placeholder="Ex: 1234, 5678">
                                 <button type="button" class="btn btn-primary" onclick="buscarColaborador('mat-folga', 'nome-folga')"><i class="ph ph-magnifying-glass"></i></button>
                             </div>
                         </div>
@@ -156,9 +156,9 @@
                     <h3 class="text-primary mb-1"><i class="ph ph-file-text"></i> Emitir C.I.</h3>
                     <form id="form-ci">
                         <div class="input-group">
-                            <label>Matrícula do Colaborador</label>
+                            <label>Matrícula do Colaborador (Ex: 123, 456)</label>
                             <div style="display: flex; gap: 10px;">
-                                <input type="number" id="mat-ci" required placeholder="Ex: 1234">
+                                <input type="text" id="mat-ci" required placeholder="Ex: 1234, 5678">
                                 <button type="button" class="btn btn-primary" onclick="buscarColaborador('mat-ci', 'nome-ci')"><i class="ph ph-magnifying-glass"></i></button>
                             </div>
                         </div>
@@ -181,14 +181,13 @@
                             <div class="input-group"><label>Período Até:</label><input type="date" id="filtro-hist-fim"></div>
                         </div>
                         <div class="input-group mt-1">
-                            <label>Matrícula do Colaborador (Obrigatório):</label>
+                            <label>Matrícula do Colaborador (Opcional):</label>
                             <input type="number" id="filtro-hist-mat" placeholder="Ex: 1234">
                         </div>
                         <button class="btn btn-primary btn-block mt-1" onclick="filtrarHistoricoLider()"><i class="ph ph-funnel"></i> Buscar Lançamentos</button>
                     </div>
 
-                    <div id="painel-historico-lider" style="display: flex; flex-direction: column; gap: 10px;">
-                    </div>
+                    <div id="painel-historico-lider" style="display: flex; flex-direction: column; gap: 10px;"></div>
 
                     <button type="button" class="btn btn-secondary btn-block mt-1" onclick="voltarParaMenu()">Voltar ao Menu Principal</button>
                 </div>
@@ -201,16 +200,25 @@
                 <div class="card" style="border-top: 4px solid var(--accent);"><h3 class="text-danger"><i class="ph ph-sign-out"></i> Aguardando Liberação de Saída</h3><div id="lista-portaria-saida" class="list-container"></div></div>
                 <div class="card" style="border-top: 4px solid var(--primary);"><h3 class="text-primary"><i class="ph ph-sign-in"></i> Aguardando Liberação de Entrada</h3><div id="lista-portaria-entrada" class="list-container"></div></div>
                 <div class="card" style="border-top: 4px solid var(--warning);"><h3 style="color: var(--warning);"><i class="ph ph-clock-counter-clockwise"></i> Aguardando Retorno</h3><div id="lista-portaria-retorno" class="list-container"></div></div>
-                <div class="card" style="border-top: 4px solid var(--success);"><h3 class="text-success"><i class="ph ph-check-circle"></i> Histórico de Hoje (Concluídos)</h3><div id="lista-historico-portaria" class="list-container"></div></div>
+                
+                <div class="card" style="border-top: 4px solid var(--success);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3 class="text-success" style="margin: 0; border: none; padding: 0;"><i class="ph ph-check-circle"></i> Histórico de Hoje (Concluídos)</h3>
+                        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('lista-historico-portaria', this)"><i class="ph ph-minus"></i></button>
+                    </div>
+                    <div id="lista-historico-portaria" class="list-container"></div>
+                </div>
             </section>
 
             <section id="tela-rh" class="view-section hidden">
                 <button class="btn btn-secondary btn-block mb-1" onclick="iniciarRH()"><i class="ph ph-arrows-clockwise"></i> Atualizar Tela</button>
                 
                 <div class="card mb-1" style="border-top: 4px solid var(--primary);">
-                    <h3 class="text-primary" style="margin-bottom: 10px;"><i class="ph ph-bell-ringing"></i> Movimentações de Hoje (Tempo Real)</h3>
-                    <div id="painel-notificacoes-rh" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3 class="text-primary" style="margin: 0; border: none; padding: 0;"><i class="ph ph-bell-ringing"></i> Movimentações de Hoje (Tempo Real)</h3>
+                        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('painel-notificacoes-rh', this)"><i class="ph ph-minus"></i></button>
                     </div>
+                    <div id="painel-notificacoes-rh" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;"></div>
                 </div>
 
                 <div class="kpi-grid">
@@ -220,11 +228,21 @@
 
                 <div class="card mt-1">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h3><i class="ph ph-trophy"></i> Ranking do Mês (Mais Saídas)</h3>
-                        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('lista-ranking-container', this)"><i class="ph ph-minus"></i></button>
+                        <h3><i class="ph ph-sign-out"></i> Ranking do Mês (Mais Saídas)</h3>
+                        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('lista-ranking-saida-container', this)"><i class="ph ph-minus"></i></button>
                     </div>
-                    <div id="lista-ranking-container">
-                        <ul id="lista-ranking" class="ranking-list"></ul>
+                    <div id="lista-ranking-saida-container">
+                        <ul id="lista-ranking-saida" class="ranking-list"></ul>
+                    </div>
+                </div>
+
+                <div class="card mt-1">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3><i class="ph ph-sign-in"></i> Ranking do Mês (Mais Entradas)</h3>
+                        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('lista-ranking-entrada-container', this)"><i class="ph ph-minus"></i></button>
+                    </div>
+                    <div id="lista-ranking-entrada-container">
+                        <ul id="lista-ranking-entrada" class="ranking-list"></ul>
                     </div>
                 </div>
 
@@ -250,7 +268,6 @@
                                     <option value="CI">C.I. Comunicação</option>
                                     <option value="faltou_entrada">Faltou - Liberação de Entrada</option>
                                     <option value="faltou_saida">Faltou - Liberação de Saída</option>
-                                    <option value="ranking">Ranking Acumulado por Colaborador</option>
                                 </select>
                             </div>
                             <div class="input-group hidden" id="box-filtro-lider" style="grid-column: 1 / -1;"><label>Líder:</label><select id="filtro-lider-select"></select></div>
@@ -308,8 +325,7 @@
         <div class="modal-box">
             <h3 class="text-primary"><i class="ph ph-squares-four"></i> Escolher Tela</h3>
             <p style="margin-bottom: 1.5rem; color: var(--text-light); font-size: 0.9rem;">Você possui acesso a múltiplos módulos. Escolha qual deseja abrir agora:</p>
-            <div id="botoes-perfis" style="display: flex; flex-direction: column; gap: 10px;">
-                </div>
+            <div id="botoes-perfis" style="display: flex; flex-direction: column; gap: 10px;"></div>
         </div>
     </div>
 
