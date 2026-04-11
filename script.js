@@ -47,6 +47,14 @@ function extrairDataISO(dataBRouISO) {
     return String(dataBRouISO);
 }
 
+function formatarDataSimplesBR(dataISO) {
+    if(!dataISO) return "";
+    if(dataISO.includes('/')) return dataISO;
+    const p = dataISO.split('T')[0].split('-');
+    if(p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
+    return dataISO;
+}
+
 window.toggleVisibilidade = function(idContainer, btnElement) {
     const el = document.getElementById(idContainer);
     if (el.classList.contains('hidden')) {
@@ -131,16 +139,26 @@ function abrirTrocaDeSenha(loginUser) {
     };
 }
 
+// ATUALIZAÇÃO CIRÚRGICA: O Novo Cartão Postal de Perfis (Glassmorphism)
 function abrirSelecaoDePerfil(perfisDisponiveis) {
     const box = document.getElementById('botoes-perfis');
     box.innerHTML = '';
     
-    const icones = { 'LIDER': 'ph-users', 'PORTARIA': 'ph-door-open', 'RH': 'ph-chart-pieSlice' };
-    const cores = { 'LIDER': 'btn-primary', 'PORTARIA': 'btn-danger', 'RH': 'btn-dark' };
+    const config = { 
+        'LIDER': { icon: 'ph-users', bg: 'var(--grad-primary)', desc: 'Gestão de Lançamentos e Histórico' }, 
+        'PORTARIA': { icon: 'ph-door-open', bg: 'var(--grad-accent)', desc: 'Controle de Acessos Físicos (Cancela)' }, 
+        'RH': { icon: 'ph-chart-pieSlice', bg: 'var(--grad-corp)', desc: 'Dashboards, Relatórios e Rankings globais' } 
+    };
     
     perfisDisponiveis.forEach(p => {
-        if(icones[p]) {
-            box.innerHTML += `<button class="btn ${cores[p]}" onclick="escolherPerfilEEntrar('${p}')" style="padding: 1rem; font-size: 1.1rem;"><i class="ph ${icones[p]}"></i> Acessar Módulo ${p}</button>`;
+        if(config[p]) {
+            box.innerHTML += `
+                <div class="profile-card" onclick="escolherPerfilEEntrar('${p}')" style="background: ${config[p].bg};">
+                    <i class="ph ${config[p].icon}"></i>
+                    <h3>Módulo ${p}</h3>
+                    <p>${config[p].desc}</p>
+                </div>
+            `;
         }
     });
     document.getElementById('modal-selecao-perfil').classList.remove('hidden');
@@ -202,7 +220,6 @@ async function iniciarLider() {
         });
     }
 
-    // REGRA 2: Observação obrigatória se Motivo for 'Outros'
     const selMotivo = document.getElementById('motivo-saida');
     if (selMotivo) {
         selMotivo.addEventListener('change', function() {
@@ -231,17 +248,12 @@ async function iniciarLider() {
     } catch(e) { console.log(e); }
 }
 
-// ------------------------------------------
-// HISTÓRICO DO LÍDER (NOVO MÓDULO)
-// ------------------------------------------
 window.abrirHistoricoLider = function() {
     abrirTela('view-historico-lider');
-    
     const hoje = new Date().toISOString().split('T')[0];
     document.getElementById('filtro-hist-inicio').value = hoje;
     document.getElementById('filtro-hist-fim').value = hoje;
     document.getElementById('filtro-hist-mat').value = '';
-    
     filtrarHistoricoLider(); 
 }
 
@@ -253,9 +265,7 @@ window.filtrarHistoricoLider = async function() {
         const res = await fetch(`${API_URL}?tabela=Lancamentos`);
         const json = await res.json();
         dadosGeraisRH = json.dados || [];
-    } catch(e) {
-        showToast("Erro ao buscar histórico recente.", "erro");
-    }
+    } catch(e) { showToast("Erro ao buscar histórico recente.", "erro"); }
 
     const dtIn = document.getElementById('filtro-hist-inicio').value;
     const dtFim = document.getElementById('filtro-hist-fim').value;
@@ -329,16 +339,13 @@ window.filtrarHistoricoLider = async function() {
     container.innerHTML = htmlFinal;
 }
 
-// ------------------------------------------
-// VALIDAÇÃO ANTI-DUPLICIDADE E NOVOS FORMS
-// ------------------------------------------
 function verificaDuplicidade(matricula, data, tipoLancamento) {
-    const dataVerificar = data.split('T')[0]; 
+    const dataVerificarISO = extrairDataISO(data); 
     const jaExiste = dadosGeraisRH.some(registro => {
-        const dataRegistro = String(registro.Data_Hora_Pedido || registro.Data || "").split('T')[0];
+        const dataRegistroISO = extrairDataISO(registro.Previsao_Saida || registro.Data_Hora_Pedido);
         return (
             String(registro.Matricula) === String(matricula) && 
-            dataRegistro === dataVerificar && 
+            dataRegistroISO === dataVerificarISO && 
             registro.Motivo === tipoLancamento
         );
     });
@@ -359,11 +366,8 @@ function configurarFormularioLider(idForm, tipoLancamento) {
         
         if(!nomeRaw || nomeRaw === 'Buscando...') return showToast("Aguarde ou faça a busca das matrículas primeiro.", "erro");
 
-        // REGRA 1: Separa as múltiplas matrículas e os nomes
         const matriculasArray = matRaw.split(',').map(m => m.trim()).filter(m => m);
         const nomesArray = nomeRaw.split('/').map(n => n.trim()).filter(n => n);
-        
-        // Separa as múltiplas datas (No caso da Folga)
         const datasArray = dataInputRaw.split(',').map(d => d.trim()).filter(d => d);
 
         const btn = form.querySelector('button[type="submit"]');
@@ -376,15 +380,13 @@ function configurarFormularioLider(idForm, tipoLancamento) {
         let salvos = 0;
         let erros = 0;
 
-        // Loop sobre cada Colaborador digitado
         for (let i = 0; i < matriculasArray.length; i++) {
             const matAtual = matriculasArray[i];
             const nomeAtual = nomesArray[i] || 'Nome não localizado';
 
-            // Loop sobre cada Data selecionada
             for (const dataAtual of datasArray) {
                 if (verificaDuplicidade(matAtual, dataAtual, tipoLancamento)) {
-                    showToast(`Atenção: Já existe ${tipoLancamento} para ${matAtual} na data ${formatarISOparaBR(dataAtual)}!`, 'erro');
+                    showToast(`Atenção: Já existe ${tipoLancamento} para ${matAtual} na data ${formatarDataSimplesBR(dataAtual)}!`, 'erro');
                     erros++;
                     continue; 
                 }
@@ -396,7 +398,7 @@ function configurarFormularioLider(idForm, tipoLancamento) {
                     tipoLancamento,                          
                     usuarioLogado.nome,                      
                     observacao,                              
-                    formatarISOparaBR(dataAtual),                 
+                    formatarDataSimplesBR(dataAtual),                 
                     'Não',                                   
                     '',                                      
                     'Lançamento RH'                          
@@ -423,7 +425,7 @@ function configurarFormularioLider(idForm, tipoLancamento) {
             }
 
             voltarParaMenu();
-            iniciarLider(); // Atualiza os dados background
+            iniciarLider(); 
         }
 
         btn.innerHTML = txtOrg; 
@@ -460,9 +462,10 @@ window.iniciarFormulario = function(tipo) {
     document.getElementById('label-prev-acao').textContent = tipo === 'Saída' ? 'Prev. Saída' : 'Prev. Chegada';
     document.getElementById('prev-acao').value = dataHoraInputLocal();
     
-    // Reseta validações visuais
     const obs = document.getElementById('obs-saida');
     obs.required = false; obs.placeholder = "(Opcional)"; obs.style.border = "1px solid var(--border)";
+    const selMotivo = document.getElementById('motivo-saida');
+    if(selMotivo) selMotivo.value = "";
 
     const boxRetorno = document.getElementById('box-vai-retornar');
     if(tipo === 'Entrada') { boxRetorno.classList.add('hidden'); document.getElementById('vai-retornar').value = 'Não'; } 
@@ -483,7 +486,6 @@ window.togglePrevisaoRetorno = function() {
     else { box.classList.add('hidden'); input.required = false; input.value = ''; }
 }
 
-// BUSCA INTELIGENTE (SUPORTA MÚLTIPLAS MATRÍCULAS SEPARADAS POR VÍRGULA)
 window.buscarColaborador = async function(idInputMatricula, idInputNome) {
     const matRaw = document.getElementById(idInputMatricula).value;
     if(!matRaw) return;
@@ -603,7 +605,6 @@ document.getElementById('btn-modal-confirm').addEventListener('click', () => {
     setTimeout(() => { btnConfirmarOrigem.disabled = false; }, 1000);
 });
 
-// MOTOR DE ATUALIZAÇÃO SILENCIOSA DA PORTARIA
 async function iniciarPortaria() {
     document.getElementById('tela-portaria').classList.remove('hidden');
     carregarPortaria();
@@ -766,8 +767,9 @@ function carregarNotificacoesHoje(dados) {
         const d1 = extrairDataISO(d.Data_Hora_Pedido);
         const d2 = extrairDataISO(d.Previsao_Saida);
         const d3 = extrairDataISO(d.Data_Hora_Saida);
+        const d4 = extrairDataISO(d.Data); 
         
-        if (d1 === hojeISO || d2 === hojeISO || d3 === hojeISO) {
+        if (d1 === hojeISO || d2 === hojeISO || d3 === hojeISO || d4 === hojeISO) {
             if (d.Motivo === 'Falta') faltas.push(d);
             else if (d.Motivo === 'Folga') folgas.push(d);
             else if (d.Motivo === 'CI') cis.push(d);
@@ -791,13 +793,15 @@ function carregarNotificacoesHoje(dados) {
             lista.forEach(item => {
                 const isFormRH = ['Falta', 'Folga', 'CI'].includes(item.Motivo);
                 const infoPrincipal = isFormRH ? item.Observacao : item.Motivo;
-                const obsTag = (!isFormRH && item.Observacao) ? `<div style="font-size:0.75rem; color:var(--text-light); margin-top:3px;"><i class="ph ph-chat-text"></i> <i>${item.Observacao}</i></div>` : '';
+                
+                // ATUALIZAÇÃO CIRÚRGICA: Mostra a observação bonitinha embaixo do motivo
+                const obsTag = (!isFormRH && item.Observacao) ? `<div style="font-size:0.75rem; color:var(--text-light); margin-top:4px; padding:4px 8px; background: rgba(0,0,0,0.03); border-radius:4px; border-left: 2px solid var(--${cor});"><i class="ph ph-chat-text"></i> <i>${item.Observacao}</i></div>` : '';
 
                 html += `
-                <div style="padding: 6px 0; border-bottom: 1px dashed var(--border);">
+                <div style="padding: 8px 0; border-bottom: 1px dashed var(--border);">
                     <strong style="color: var(--primary);">${item.Nome}</strong> <span style="color: var(--text-light); font-size: 0.7rem;">(${item.Matricula})</span><br>
-                    <span style="color: var(--text-light);">Líder: ${item.Lider}</span><br>
-                    <span style="color: var(--dark); font-weight: 500;">${infoPrincipal || '-'}</span>
+                    <span style="color: var(--text-light); font-size: 0.8rem;">Líder: ${item.Lider}</span><br>
+                    <span style="color: var(--dark); font-weight: 500; font-size: 0.85rem;">${infoPrincipal || '-'}</span>
                     ${obsTag}
                 </div>`;
             });
@@ -814,53 +818,81 @@ function carregarNotificacoesHoje(dados) {
         criarCardNotificacao('C.I.s', 'ph-file-text', 'warning', cis);
 }
 
-// 7 E 8: RANKINGS SEPARADOS (SAÍDAS E ENTRADAS)
 function gerarKPIsERanking(dados) {
     const hojeISO = new Date().toISOString().split('T')[0]; 
     const mesAtualISO = hojeISO.substring(0,7); 
-    let contHoje = 0, contMes = 0; 
+    
+    let kpi = {
+        hoje: { saida: 0, entrada: 0, falta: 0, folga: 0, ci: 0 },
+        mes: { saida: 0, entrada: 0, falta: 0, folga: 0, ci: 0 }
+    };
     
     let rankingSaidas = {};
     let rankingEntradas = {};
 
     dados.forEach(d => {
-        const dataPedidoISO = extrairDataISO(d.Data_Hora_Pedido);
-        if(dataPedidoISO === hojeISO) contHoje++;
-        if(dataPedidoISO.startsWith(mesAtualISO)) {
-            contMes++;
+        const dataPedidoISO = extrairDataISO(d.Data_Hora_Pedido || d.Data);
+        
+        const isMes = dataPedidoISO.startsWith(mesAtualISO);
+        
+        const d1 = extrairDataISO(d.Data_Hora_Pedido);
+        const d2 = extrairDataISO(d.Previsao_Saida);
+        const d3 = extrairDataISO(d.Data_Hora_Saida);
+        const d4 = extrairDataISO(d.Data);
+        const isHoje = (d1 === hojeISO || d2 === hojeISO || d3 === hojeISO || d4 === hojeISO);
+        
+        let cat = '';
+        if (d.Motivo === 'Falta') cat = 'falta';
+        else if (d.Motivo === 'Folga') cat = 'folga';
+        else if (d.Motivo === 'CI') cat = 'ci';
+        else if (d.Direcao === 'Saída') cat = 'saida';
+        else if (d.Direcao === 'Entrada') cat = 'entrada';
+
+        if (cat) {
+            if (isHoje) kpi.hoje[cat]++;
+            if (isMes) kpi.mes[cat]++;
+        }
+
+        if(isMes) {
             const chaveColab = `${d.Matricula} - ${d.Nome}`;
-            
-            // Conta especificamente Saída
-            if(d.Direcao === 'Saída') {
-                rankingSaidas[chaveColab] = (rankingSaidas[chaveColab] || 0) + 1;
-            }
-            // Conta especificamente Entrada
-            else if(d.Direcao === 'Entrada') {
-                rankingEntradas[chaveColab] = (rankingEntradas[chaveColab] || 0) + 1;
-            }
+            if(d.Direcao === 'Saída') rankingSaidas[chaveColab] = (rankingSaidas[chaveColab] || 0) + 1;
+            else if(d.Direcao === 'Entrada') rankingEntradas[chaveColab] = (rankingEntradas[chaveColab] || 0) + 1;
         }
     });
     
-    document.getElementById('kpi-hoje').textContent = contHoje;
-    document.getElementById('kpi-mes').textContent = contMes;
+    if(document.getElementById('kpi-hoje-saida')) {
+        document.getElementById('kpi-hoje-saida').textContent = kpi.hoje.saida;
+        document.getElementById('kpi-hoje-entrada').textContent = kpi.hoje.entrada;
+        document.getElementById('kpi-hoje-falta').textContent = kpi.hoje.falta;
+        document.getElementById('kpi-hoje-folga').textContent = kpi.hoje.folga;
+        document.getElementById('kpi-hoje-ci').textContent = kpi.hoje.ci;
+
+        document.getElementById('kpi-mes-saida').textContent = kpi.mes.saida;
+        document.getElementById('kpi-mes-entrada').textContent = kpi.mes.entrada;
+        document.getElementById('kpi-mes-falta').textContent = kpi.mes.falta;
+        document.getElementById('kpi-mes-folga').textContent = kpi.mes.folga;
+        document.getElementById('kpi-mes-ci').textContent = kpi.mes.ci;
+    }
     
-    // RENDERIZA SAÍDAS (TOP 10)
     const arraySaidas = Object.keys(rankingSaidas).map(key => { return { nome: key, total: rankingSaidas[key] }; });
     arraySaidas.sort((a, b) => b.total - a.total);
-    const ulSaidas = document.getElementById('lista-ranking-saida'); ulSaidas.innerHTML = '';
-    const top10Saidas = arraySaidas.slice(0, 10); 
-    
-    if(top10Saidas.length === 0) { ulSaidas.innerHTML = '<li><span class="text-light">Nenhuma saída neste mês.</span></li>'; } 
-    else { top10Saidas.forEach((item, index) => { ulSaidas.innerHTML += `<li><span><strong>${index + 1}º</strong> ${item.nome}</span><span class="badge-rank">${item.total} req.</span></li>`; }); }
+    const ulSaidas = document.getElementById('lista-ranking-saida'); 
+    if(ulSaidas) {
+        ulSaidas.innerHTML = '';
+        const top10Saidas = arraySaidas.slice(0, 10); 
+        if(top10Saidas.length === 0) { ulSaidas.innerHTML = '<li><span class="text-light">Nenhuma saída neste mês.</span></li>'; } 
+        else { top10Saidas.forEach((item, index) => { ulSaidas.innerHTML += `<li><span><strong>${index + 1}º</strong> ${item.nome}</span><span class="badge-rank">${item.total} req.</span></li>`; }); }
+    }
 
-    // RENDERIZA ENTRADAS (TOP 10)
     const arrayEntradas = Object.keys(rankingEntradas).map(key => { return { nome: key, total: rankingEntradas[key] }; });
     arrayEntradas.sort((a, b) => b.total - a.total);
-    const ulEntradas = document.getElementById('lista-ranking-entrada'); ulEntradas.innerHTML = '';
-    const top10Entradas = arrayEntradas.slice(0, 10); 
-    
-    if(top10Entradas.length === 0) { ulEntradas.innerHTML = '<li><span class="text-light">Nenhuma entrada neste mês.</span></li>'; } 
-    else { top10Entradas.forEach((item, index) => { ulEntradas.innerHTML += `<li><span><strong>${index + 1}º</strong> ${item.nome}</span><span class="badge-rank" style="background:var(--primary);">${item.total} req.</span></li>`; }); }
+    const ulEntradas = document.getElementById('lista-ranking-entrada'); 
+    if(ulEntradas) {
+        ulEntradas.innerHTML = '';
+        const top10Entradas = arrayEntradas.slice(0, 10); 
+        if(top10Entradas.length === 0) { ulEntradas.innerHTML = '<li><span class="text-light">Nenhuma entrada neste mês.</span></li>'; } 
+        else { top10Entradas.forEach((item, index) => { ulEntradas.innerHTML += `<li><span><strong>${index + 1}º</strong> ${item.nome}</span><span class="badge-rank" style="background:var(--primary);">${item.total} req.</span></li>`; }); }
+    }
 }
 
 function preencherOpcoesFiltros(dados) {
@@ -901,31 +933,26 @@ window.aplicarFiltrosRH = function() {
     if (tipo === 'lider') {
         const val = document.getElementById('filtro-lider-select').value;
         if(val) dadosFiltrados = dadosFiltrados.filter(d => d.Lider === val);
-        renderizarTabelaGeralRH(dadosFiltrados);
     } 
     else if (tipo === 'colaborador') {
         const val = document.getElementById('filtro-colab-input').value.toLowerCase();
         if(val) dadosFiltrados = dadosFiltrados.filter(d => String(d.Matricula).toLowerCase().includes(val) || String(d.Nome).toLowerCase().includes(val));
-        renderizarTabelaGeralRH(dadosFiltrados);
     }
     else if (tipo === 'motivo') {
         const val = document.getElementById('filtro-motivo-select').value;
         if(val) dadosFiltrados = dadosFiltrados.filter(d => d.Motivo === val);
-        renderizarTabelaGeralRH(dadosFiltrados);
     }
     else if (tipo === 'Falta' || tipo === 'Folga' || tipo === 'CI') {
         dadosFiltrados = dadosFiltrados.filter(d => d.Motivo === tipo); 
-        renderizarTabelaGeralRH(dadosFiltrados);
     }
     else if (tipo === 'faltou_entrada') {
-        dadosFiltrados = dadosFiltrados.filter(d => d.Status === 'Faltou - Entrada'); renderizarTabelaGeralRH(dadosFiltrados);
+        dadosFiltrados = dadosFiltrados.filter(d => d.Status === 'Faltou - Entrada'); 
     }
     else if (tipo === 'faltou_saida') {
-        dadosFiltrados = dadosFiltrados.filter(d => d.Status === 'Faltou - Saída' || d.Status === 'Não Retornou'); renderizarTabelaGeralRH(dadosFiltrados);
+        dadosFiltrados = dadosFiltrados.filter(d => d.Status === 'Faltou - Saída' || d.Status === 'Não Retornou'); 
     }
-    // RANKING DA TABELA INFERIOR GERAL
-    else if (tipo === 'ranking') { renderizarTabelaRankingRH(dadosFiltrados); } 
-    else { renderizarTabelaGeralRH(dadosFiltrados); }
+    
+    renderizarTabelaGeralRH(dadosFiltrados);
     
     btn.innerHTML = txtOrg; btn.disabled = false;
     showToast(`${dadosFiltrados.length} registros encontrados.`, 'info');
