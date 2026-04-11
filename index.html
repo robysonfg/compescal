@@ -31,7 +31,7 @@
                 <div class="input-group"><label>Usuário</label><input type="text" id="login-user" required></div>
                 <div class="input-group"><label>Senha</label><input type="password" id="login-senha" required></div>
                 <button type="submit" class="btn btn-primary btn-block">Entrar</button>
-                <div class="version-control">Versão: v2.5.0 Enterprise</div>
+                <div class="version-control">Versão: v2.8.0 Enterprise UI</div>
             </form>
         </div>
     </div>
@@ -57,16 +57,15 @@
                 </div>
 
                 <div class="card" id="selecao-direcao">
-                    <div style="display: flex; gap: 10px; margin-bottom: 0.5rem;">
-                        <button class="btn btn-danger" style="flex:1; padding: 1.5rem 1rem;" onclick="iniciarFormulario('Saída')"><i class="ph ph-sign-out" style="font-size:1.5rem;"></i> Autorizar Saída</button>
-                        <button class="btn btn-primary" style="flex:1; padding: 1.5rem 1rem;" onclick="iniciarFormulario('Entrada')"><i class="ph ph-sign-in" style="font-size:1.5rem;"></i> Autorizar Entrada</button>
+                    <h3 style="border-bottom:none; margin-bottom:0.5rem; font-size:1rem; color:var(--text-light);">Menu de Lançamentos</h3>
+                    <div class="menu-grid">
+                        <button class="btn-menu saida" onclick="iniciarFormulario('Saída')"><i class="ph ph-sign-out"></i> Autorizar Saída</button>
+                        <button class="btn-menu entrada" onclick="iniciarFormulario('Entrada')"><i class="ph ph-sign-in"></i> Autorizar Entrada</button>
+                        <button class="btn-menu falta" onclick="abrirTela('view-falta')"><i class="ph ph-user-minus"></i> Lançar Falta</button>
+                        <button class="btn-menu folga" onclick="abrirTela('view-folga')"><i class="ph ph-coffee"></i> Lançar Folga</button>
+                        <button class="btn-menu ci" onclick="abrirTela('view-ci')"><i class="ph ph-file-text"></i> Emitir C.I.</button>
+                        <button class="btn-menu hist" onclick="abrirHistoricoLider()"><i class="ph ph-clock-counter-clockwise"></i> Meu Histórico de Lançamentos</button>
                     </div>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <button class="btn btn-secondary mt-1" style="flex:1;" onclick="abrirTela('view-falta')"><i class="ph ph-user-minus"></i> Lançar Falta</button>
-                        <button class="btn btn-secondary mt-1" style="flex:1;" onclick="abrirTela('view-folga')"><i class="ph ph-coffee"></i> Lançar Folga</button>
-                        <button class="btn btn-secondary mt-1" style="flex:1;" onclick="abrirTela('view-ci')"><i class="ph ph-file-text"></i> C.I. (Comunicação)</button>
-                    </div>
-                    <button class="btn btn-dark btn-block mt-1" onclick="abrirHistoricoLider()"><i class="ph ph-clock-counter-clockwise"></i> Meu Histórico de Lançamentos</button>
                 </div>
 
                 <div class="card hidden" id="form-autorizacao-box">
@@ -197,12 +196,12 @@
             <section id="tela-portaria" class="view-section hidden">
                 <button class="btn btn-secondary btn-block mb-1" onclick="carregarPortaria()"><i class="ph ph-arrows-clockwise"></i> Atualizar Tela</button>
                 
-                <div class="card" style="border-top: 4px solid var(--accent);"><h3 class="text-danger"><i class="ph ph-sign-out"></i> Aguardando Liberação de Saída</h3><div id="lista-portaria-saida" class="list-container"></div></div>
-                <div class="card" style="border-top: 4px solid var(--primary);"><h3 class="text-primary"><i class="ph ph-sign-in"></i> Aguardando Liberação de Entrada</h3><div id="lista-portaria-entrada" class="list-container"></div></div>
-                <div class="card" style="border-top: 4px solid var(--warning);"><h3 style="color: var(--warning);"><i class="ph ph-clock-counter-clockwise"></i> Aguardando Retorno</h3><div id="lista-portaria-retorno" class="list-container"></div></div>
+                <div class="card" style="border-top: none;"><h3 class="text-danger" style="border-bottom: 2px solid var(--accent); padding-bottom: 10px;"><i class="ph ph-sign-out"></i> Aguardando Liberação de Saída</h3><div id="lista-portaria-saida" class="list-container"></div></div>
+                <div class="card" style="border-top: none;"><h3 class="text-primary" style="border-bottom: 2px solid var(--primary); padding-bottom: 10px;"><i class="ph ph-sign-in"></i> Aguardando Liberação de Entrada</h3><div id="lista-portaria-entrada" class="list-container"></div></div>
+                <div class="card" style="border-top: none;"><h3 style="color: var(--warning); border-bottom: 2px solid var(--warning); padding-bottom: 10px;"><i class="ph ph-clock-counter-clockwise"></i> Aguardando Retorno</h3><div id="lista-portaria-retorno" class="list-container"></div></div>
                 
-                <div class="card" style="border-top: 4px solid var(--success);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div class="card" style="border-top: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 2px solid var(--success); padding-bottom: 10px;">
                         <h3 class="text-success" style="margin: 0; border: none; padding: 0;"><i class="ph ph-check-circle"></i> Histórico de Hoje (Concluídos)</h3>
                         <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('lista-historico-portaria', this)"><i class="ph ph-minus"></i></button>
                     </div>
@@ -213,17 +212,40 @@
             <section id="tela-rh" class="view-section hidden">
                 <button class="btn btn-secondary btn-block mb-1" onclick="iniciarRH()"><i class="ph ph-arrows-clockwise"></i> Atualizar Tela</button>
                 
-                <div class="card mb-1" style="border-top: 4px solid var(--primary);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div class="card mb-1">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 2px solid var(--primary); padding-bottom: 10px;">
                         <h3 class="text-primary" style="margin: 0; border: none; padding: 0;"><i class="ph ph-bell-ringing"></i> Movimentações de Hoje (Tempo Real)</h3>
                         <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('painel-notificacoes-rh', this)"><i class="ph ph-minus"></i></button>
                     </div>
                     <div id="painel-notificacoes-rh" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;"></div>
                 </div>
 
-                <div class="kpi-grid">
-                    <div class="kpi-card"><span>Autorizações Hoje</span><h3 id="kpi-hoje">0</h3></div>
-                    <div class="kpi-card highlight"><span>Autorizações no Mês</span><h3 id="kpi-mes">0</h3></div>
+                <div class="card mt-1">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3 class="text-primary" style="margin:0; border:none; padding:0;"><i class="ph ph-chart-pieSlice"></i> Resumo de Hoje</h3>
+                        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('kpi-hoje-container', this)"><i class="ph ph-minus"></i></button>
+                    </div>
+                    <div id="kpi-hoje-container" class="kpi-dashboard">
+                        <div class="kpi-item saida"><span>Saídas</span><h3 id="kpi-hoje-saida">0</h3></div>
+                        <div class="kpi-item entrada"><span>Entradas</span><h3 id="kpi-hoje-entrada">0</h3></div>
+                        <div class="kpi-item falta"><span>Faltas</span><h3 id="kpi-hoje-falta">0</h3></div>
+                        <div class="kpi-item folga"><span>Folgas</span><h3 id="kpi-hoje-folga">0</h3></div>
+                        <div class="kpi-item ci"><span>C.I.s</span><h3 id="kpi-hoje-ci">0</h3></div>
+                    </div>
+                </div>
+
+                <div class="card mt-1">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3 class="text-primary" style="margin:0; border:none; padding:0;"><i class="ph ph-calendar-blank"></i> Resumo do Mês</h3>
+                        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('kpi-mes-container', this)"><i class="ph ph-minus"></i></button>
+                    </div>
+                    <div id="kpi-mes-container" class="kpi-dashboard">
+                        <div class="kpi-item saida"><span>Saídas</span><h3 id="kpi-mes-saida">0</h3></div>
+                        <div class="kpi-item entrada"><span>Entradas</span><h3 id="kpi-mes-entrada">0</h3></div>
+                        <div class="kpi-item falta"><span>Faltas</span><h3 id="kpi-mes-falta">0</h3></div>
+                        <div class="kpi-item folga"><span>Folgas</span><h3 id="kpi-mes-folga">0</h3></div>
+                        <div class="kpi-item ci"><span>C.I.s</span><h3 id="kpi-mes-ci">0</h3></div>
+                    </div>
                 </div>
 
                 <div class="card mt-1">
@@ -280,7 +302,7 @@
 
                 <div class="card mt-1 hidden" id="card-dados-relatorio">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 1rem;">
-                        <h3 id="titulo-tabela-rh"><i class="ph ph-table"></i> Dados do Relatório</h3>
+                        <h3 id="titulo-tabela-rh" style="border:none; margin:0;"><i class="ph ph-table"></i> Dados do Relatório</h3>
                         <div class="export-buttons">
                             <button onclick="exportarPDF()" class="btn btn-danger"><i class="ph ph-file-pdf"></i> PDF</button>
                             <button onclick="exportarExcel()" class="btn btn-success"><i class="ph ph-file-xls"></i> Excel</button>
@@ -324,8 +346,9 @@
     <div id="modal-selecao-perfil" class="modal-overlay hidden">
         <div class="modal-box">
             <h3 class="text-primary"><i class="ph ph-squares-four"></i> Escolher Tela</h3>
-            <p style="margin-bottom: 1.5rem; color: var(--text-light); font-size: 0.9rem;">Você possui acesso a múltiplos módulos. Escolha qual deseja abrir agora:</p>
-            <div id="botoes-perfis" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            <p style="margin-bottom: 0.5rem; color: var(--text-light); font-size: 0.95rem;">Você possui acesso a múltiplos módulos.</p>
+            <p style="margin-bottom: 1.5rem; color: var(--text-light); font-size: 0.95rem;">Escolha qual deseja abrir agora:</p>
+            <div id="botoes-perfis"></div>
         </div>
     </div>
 
