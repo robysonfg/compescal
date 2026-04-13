@@ -145,7 +145,7 @@ function abrirSelecaoDePerfil(perfisDisponiveis) {
     
     const config = { 
         'LIDER': { icon: 'ph-users', bg: 'var(--grad-primary)', desc: 'Gestão de Lançamentos e Histórico' }, 
-        'PORTARIA': { icon: 'ph-door-open', bg: 'var(--grad-accent)', desc: 'Controle de Acessos Físicos' }, 
+        'PORTARIA': { icon: 'ph-door-open', bg: 'var(--grad-accent)', desc: 'Controle de Acessos Físicos (Cancela)' }, 
         'RH': { icon: 'ph-chart-pieSlice', bg: 'var(--grad-corp)', desc: 'Dashboards, Relatórios e Rankings globais' } 
     };
     
@@ -308,11 +308,12 @@ window.filtrarHistoricoLider = async function() {
             <div style="display:flex; flex-direction:column; gap:8px; max-height: 250px; overflow-y: auto; padding-right: 5px;">`;
         
         lista.forEach(item => {
-            // CORREÇÃO CRÍTICA: Puxa a Data do Evento exata (Previsao_Saida) e remove o Status para módulos internos (Falta/Folga/CI)
             const isFormRH = ['Falta', 'Folga', 'CI'].includes(item.Motivo);
             const dataEventoBr = isFormRH ? formatarISOparaBR(item.Previsao_Saida).split(' ')[0] : formatarISOparaBR(item.Data_Hora_Pedido || item.Data).split(' ')[0];
             const infoExtra = isFormRH ? item.Observacao : item.Motivo;
-            const statusHtml = (!isFormRH && item.Status) ? `<div style="font-size:0.75rem; margin-top:4px;">Status Atual: <strong>${item.Status}</strong></div>` : '';
+            
+            // Impede a exibição de "Aguardando liberação" nas Faltas/Folgas/CI
+            const statusExibicao = (isFormRH || item.Status === '-' || !item.Status) ? '' : `<div style="font-size:0.75rem; margin-top:4px;">Status Atual: <strong>${item.Status}</strong></div>`;
 
             html += `
                 <div style="font-size: 0.85rem; background: var(--bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border);">
@@ -321,7 +322,7 @@ window.filtrarHistoricoLider = async function() {
                         <span style="font-size:0.75rem; color:var(--text-light); font-weight:bold; background: white; padding:2px 6px; border-radius:4px; border:1px solid var(--border);">${dataEventoBr}</span>
                     </div>
                     <div style="color:var(--dark); margin-bottom: 3px;"><i class="ph ph-caret-right"></i> ${infoExtra || '-'}</div>
-                    ${statusHtml}
+                    ${statusExibicao}
                 </div>`;
         });
         html += `</div></div>`;
@@ -394,17 +395,19 @@ function configurarFormularioLider(idForm, tipoLancamento) {
                     continue; 
                 }
                 
+                // CORREÇÃO CRÍTICA DO STATUS: Envia o '-' na 11ª posição da Array para bloquear o status padrão de portaria
                 const dados = [
-                    formatarISOparaBR(dataHoraInputLocal()), 
-                    matAtual,                               
-                    nomeAtual,                                    
-                    tipoLancamento,                          
-                    usuarioLogado.nome,                      
-                    observacao,                              
-                    formatarDataSimplesBR(dataAtual),                 
-                    'Não',                                   
-                    '',                                      
-                    'Lançamento RH'                          
+                    formatarISOparaBR(dataHoraInputLocal()), // 0: Timestamp Pedido
+                    matAtual,                                // 1: Matrícula
+                    nomeAtual,                               // 2: Nome     
+                    tipoLancamento,                          // 3: Motivo
+                    usuarioLogado.nome,                      // 4: Líder Logado
+                    observacao,                              // 5: Observação
+                    formatarDataSimplesBR(dataAtual),        // 6: Data do Evento Real
+                    'Não',                                   // 7: Vai Retornar
+                    '',                                      // 8: Previsão Retorno
+                    'Lançamento RH',                         // 9: Direção
+                    '-'                                      // 10: Status Fixo Invisível
                 ];
 
                 try {
@@ -539,13 +542,16 @@ document.getElementById('form-autorizacao').addEventListener('submit', async (e)
     const btn = e.target.querySelector('button[type="submit"]');
     const txtOrg = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Autorizando...'; btn.disabled = true;
     
+    // CORREÇÃO CRÍTICA: Envia o status explícito para garantir o funcionamento correto na portaria
     const dados = [
         formatarISOparaBR(dataHoraInputLocal()), 
         document.getElementById('mat-colaborador').value, nome, document.getElementById('motivo-saida').value,
         usuarioLogado.nome, document.getElementById('obs-saida').value,
         formatarISOparaBR(document.getElementById('prev-acao').value),
         document.getElementById('vai-retornar').value,
-        formatarISOparaBR(document.getElementById('prev-retorno').value), direcaoAtual
+        formatarISOparaBR(document.getElementById('prev-retorno').value), 
+        direcaoAtual,
+        `Aguardando Liberação de ${direcaoAtual}` // Status Fixo
     ];
 
     try {
@@ -962,7 +968,6 @@ window.aplicarFiltrosRH = function() {
     showToast(`${dadosFiltrados.length} registros encontrados.`, 'info');
 }
 
-// CORREÇÃO CRÍTICA NA TABELA DO RH PARA AS DATAS E STATUS
 function renderizarTabelaGeralRH(dados) {
     const thead = document.getElementById('thead-relatorio'); const tbody = document.getElementById('tbody-relatorio');
     
@@ -981,7 +986,7 @@ function renderizarTabelaGeralRH(dados) {
         const tipoDir = d.Direcao === 'Entrada' ? 'Entrada' : (d.Direcao === 'Lançamento RH' ? 'Reg. Interno' : 'Saída');
         
         const dataEvento = isFormRH ? formatarISOparaBR(d.Previsao_Saida).split(' ')[0] : '-';
-        const statusExibicao = isFormRH ? '-' : `<span class="status-badge ${bClass}">${d.Status}</span>`;
+        const statusExibicao = (isFormRH || d.Status === '-') ? '-' : `<span class="status-badge ${bClass}">${d.Status}</span>`;
         const libExibicao = isFormRH ? '-' : formatarISOparaBR(d.Data_Hora_Saida);
         const retExibicao = isFormRH ? '-' : formatarISOparaBR(d.Data_Hora_Retorno);
 
