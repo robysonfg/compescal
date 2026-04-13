@@ -1,7 +1,7 @@
 // ==========================================
 // CONFIGURAÇÃO DA API E VARIÁVEIS GLOBAIS
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbxNzsECDsawnLWMK6iWkeHs2gJMjt_lLEPP-fKZtGKE-nTxvXh9VlAWQKl7b0TatWds0g/exec"; // <--- ATENÇÃO: COLE SUA URL AQUI
+const API_URL = "https://script.google.com/macros/s/AKfycbzoXv41yRgJEkYIAPRzDvRPp5aRh6PTj5TzbfaOTrKzT_yUwHn3xPtMB4F5TSlZS2wG9w/exec"; // <--- ATENÇÃO: COLE SUA URL AQUI
 let ultimoTotalPortaria = 0; 
 let intervaloPortaria = null; 
 let usuarioLogado = null;
@@ -9,7 +9,7 @@ let dadosGeraisRH = [];
 let direcaoAtual = ""; 
 
 // ==========================================
-// UTILIDADES
+// UTILIDADES E NAVEGAÇÃO
 // ==========================================
 function showToast(mensagem, tipo = 'sucesso') {
     const container = document.getElementById('toast-container');
@@ -64,6 +64,26 @@ window.toggleVisibilidade = function(idContainer, btnElement) {
         el.classList.add('hidden');
         btnElement.innerHTML = '<i class="ph ph-plus"></i>';
     }
+}
+
+// ATUALIZAÇÃO CIRÚRGICA 1: O Limpa-Trilhos do Líder
+window.resetarTelasLider = function() {
+    const telas = ['view-falta', 'view-folga', 'view-ci', 'form-autorizacao-box', 'view-historico-lider'];
+    telas.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.classList.add('hidden');
+    });
+}
+
+window.abrirTela = function(idTela) {
+    window.resetarTelasLider(); // Fecha os outros antes de abrir
+    document.getElementById('selecao-direcao').classList.add('hidden');
+    document.getElementById(idTela).classList.remove('hidden');
+}
+
+window.voltarParaMenu = function() {
+    window.resetarTelasLider(); // Limpa tudo
+    document.getElementById('selecao-direcao').classList.remove('hidden'); // Volta o menu
 }
 
 // ==========================================
@@ -175,6 +195,10 @@ document.getElementById('btn-trocar-perfil').addEventListener('click', () => {
 
 function direcionarTela(perfil) {
     document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+    
+    // ATUALIZAÇÃO CIRÚRGICA 2: Garante que a tela do líder reseta se a pessoa clicar no botão de "Trocar Tela"
+    if(window.voltarParaMenu) window.voltarParaMenu(); 
+    
     if(perfil === 'LIDER') iniciarLider();
     else if(perfil === 'PORTARIA') iniciarPortaria();
     else if(perfil === 'RH') iniciarRH();
@@ -311,8 +335,6 @@ window.filtrarHistoricoLider = async function() {
             const isFormRH = ['Falta', 'Folga', 'CI'].includes(item.Motivo);
             const dataEventoBr = isFormRH ? formatarISOparaBR(item.Previsao_Saida).split(' ')[0] : formatarISOparaBR(item.Data_Hora_Pedido || item.Data).split(' ')[0];
             const infoExtra = isFormRH ? item.Observacao : item.Motivo;
-            
-            // Impede a exibição de "Aguardando liberação" nas Faltas/Folgas/CI
             const statusExibicao = (isFormRH || item.Status === '-' || !item.Status) ? '' : `<div style="font-size:0.75rem; margin-top:4px;">Status Atual: <strong>${item.Status}</strong></div>`;
 
             html += `
@@ -395,19 +417,18 @@ function configurarFormularioLider(idForm, tipoLancamento) {
                     continue; 
                 }
                 
-                // CORREÇÃO CRÍTICA DO STATUS: Envia o '-' na 11ª posição da Array para bloquear o status padrão de portaria
                 const dados = [
-                    formatarISOparaBR(dataHoraInputLocal()), // 0: Timestamp Pedido
-                    matAtual,                                // 1: Matrícula
-                    nomeAtual,                               // 2: Nome     
-                    tipoLancamento,                          // 3: Motivo
-                    usuarioLogado.nome,                      // 4: Líder Logado
-                    observacao,                              // 5: Observação
-                    formatarDataSimplesBR(dataAtual),        // 6: Data do Evento Real
-                    'Não',                                   // 7: Vai Retornar
-                    '',                                      // 8: Previsão Retorno
-                    'Lançamento RH',                         // 9: Direção
-                    '-'                                      // 10: Status Fixo Invisível
+                    formatarISOparaBR(dataHoraInputLocal()), 
+                    matAtual,                               
+                    nomeAtual,                                    
+                    tipoLancamento,                          
+                    usuarioLogado.nome,                      
+                    observacao,                              
+                    formatarDataSimplesBR(dataAtual),                 
+                    'Não',                                   
+                    '',                                      
+                    'Lançamento RH',                         
+                    '-'                                      
                 ];
 
                 try {
@@ -443,27 +464,15 @@ configurarFormularioLider('form-falta', 'Falta');
 configurarFormularioLider('form-folga', 'Folga');
 configurarFormularioLider('form-ci', 'CI');
 
-window.abrirTela = function(idTela) {
-    document.getElementById('selecao-direcao').classList.add('hidden');
-    document.getElementById(idTela).classList.remove('hidden');
-}
-
-window.voltarParaMenu = function() {
-    document.getElementById('view-falta').classList.add('hidden');
-    document.getElementById('view-folga').classList.add('hidden');
-    document.getElementById('view-ci').classList.add('hidden');
-    document.getElementById('form-autorizacao-box').classList.add('hidden');
-    document.getElementById('view-historico-lider').classList.add('hidden');
-    document.getElementById('selecao-direcao').classList.remove('hidden');
-}
-
 // ------------------------------------------
 // FORMULÁRIO ORIGINAL DE ENTRADA E SAÍDA
 // ------------------------------------------
 window.iniciarFormulario = function(tipo) {
     direcaoAtual = tipo;
+    window.resetarTelasLider(); // Limpa a tela
     document.getElementById('selecao-direcao').classList.add('hidden');
     document.getElementById('form-autorizacao-box').classList.remove('hidden');
+    
     document.getElementById('titulo-form').innerHTML = tipo === 'Saída' ? `<i class="ph ph-sign-out"></i> Autorizando Saída` : `<i class="ph ph-sign-in"></i> Autorizando Entrada`;
     document.getElementById('label-prev-acao').textContent = tipo === 'Saída' ? 'Prev. Saída' : 'Prev. Chegada';
     document.getElementById('prev-acao').value = dataHoraInputLocal();
@@ -481,8 +490,7 @@ window.iniciarFormulario = function(tipo) {
 
 window.voltarSelecao = function() {
     document.getElementById('form-autorizacao').reset();
-    document.getElementById('form-autorizacao-box').classList.add('hidden');
-    document.getElementById('selecao-direcao').classList.remove('hidden');
+    window.voltarParaMenu(); // Limpa e volta
 }
 
 window.togglePrevisaoRetorno = function() {
@@ -542,16 +550,14 @@ document.getElementById('form-autorizacao').addEventListener('submit', async (e)
     const btn = e.target.querySelector('button[type="submit"]');
     const txtOrg = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Autorizando...'; btn.disabled = true;
     
-    // CORREÇÃO CRÍTICA: Envia o status explícito para garantir o funcionamento correto na portaria
     const dados = [
         formatarISOparaBR(dataHoraInputLocal()), 
         document.getElementById('mat-colaborador').value, nome, document.getElementById('motivo-saida').value,
         usuarioLogado.nome, document.getElementById('obs-saida').value,
         formatarISOparaBR(document.getElementById('prev-acao').value),
         document.getElementById('vai-retornar').value,
-        formatarISOparaBR(document.getElementById('prev-retorno').value), 
-        direcaoAtual,
-        `Aguardando Liberação de ${direcaoAtual}` // Status Fixo
+        formatarISOparaBR(document.getElementById('prev-retorno').value), direcaoAtual,
+        `Aguardando Liberação de ${direcaoAtual}` // Manda explicitamente o status para saída e entrada
     ];
 
     try {
