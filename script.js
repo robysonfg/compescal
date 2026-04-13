@@ -139,7 +139,6 @@ function abrirTrocaDeSenha(loginUser) {
     };
 }
 
-// ATUALIZAÇÃO CIRÚRGICA: O Novo Cartão Postal de Perfis (Glassmorphism)
 function abrirSelecaoDePerfil(perfisDisponiveis) {
     const box = document.getElementById('botoes-perfis');
     box.innerHTML = '';
@@ -309,16 +308,20 @@ window.filtrarHistoricoLider = async function() {
             <div style="display:flex; flex-direction:column; gap:8px; max-height: 250px; overflow-y: auto; padding-right: 5px;">`;
         
         lista.forEach(item => {
-            const dataBr = formatarISOparaBR(item.Data_Hora_Pedido || item.Data);
-            const infoExtra = ['Falta', 'Folga', 'CI'].includes(item.Motivo) ? item.Observacao : item.Motivo;
+            // CORREÇÃO CRÍTICA: Puxa a Data do Evento exata (Previsao_Saida) e remove o Status para módulos internos (Falta/Folga/CI)
+            const isFormRH = ['Falta', 'Folga', 'CI'].includes(item.Motivo);
+            const dataEventoBr = isFormRH ? formatarISOparaBR(item.Previsao_Saida).split(' ')[0] : formatarISOparaBR(item.Data_Hora_Pedido || item.Data).split(' ')[0];
+            const infoExtra = isFormRH ? item.Observacao : item.Motivo;
+            const statusHtml = (!isFormRH && item.Status) ? `<div style="font-size:0.75rem; margin-top:4px;">Status Atual: <strong>${item.Status}</strong></div>` : '';
+
             html += `
                 <div style="font-size: 0.85rem; background: var(--bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border);">
                     <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
                         <strong style="color:var(--primary);">${item.Nome} <span style="color:var(--text-light)">(${item.Matricula})</span></strong>
-                        <span style="font-size:0.75rem; color:var(--text-light); font-weight:bold;">${dataBr.split(' ')[0]}</span>
+                        <span style="font-size:0.75rem; color:var(--text-light); font-weight:bold; background: white; padding:2px 6px; border-radius:4px; border:1px solid var(--border);">${dataEventoBr}</span>
                     </div>
                     <div style="color:var(--dark); margin-bottom: 3px;"><i class="ph ph-caret-right"></i> ${infoExtra || '-'}</div>
-                    ${item.Status ? `<div style="font-size:0.75rem;">Status Atual: <strong>${item.Status}</strong></div>` : ''}
+                    ${statusHtml}
                 </div>`;
         });
         html += `</div></div>`;
@@ -793,13 +796,14 @@ function carregarNotificacoesHoje(dados) {
             lista.forEach(item => {
                 const isFormRH = ['Falta', 'Folga', 'CI'].includes(item.Motivo);
                 const infoPrincipal = isFormRH ? item.Observacao : item.Motivo;
+                const dataEvento = isFormRH ? formatarISOparaBR(item.Previsao_Saida).split(' ')[0] : '';
                 
-                // ATUALIZAÇÃO CIRÚRGICA: Mostra a observação bonitinha embaixo do motivo
                 const obsTag = (!isFormRH && item.Observacao) ? `<div style="font-size:0.75rem; color:var(--text-light); margin-top:4px; padding:4px 8px; background: rgba(0,0,0,0.03); border-radius:4px; border-left: 2px solid var(--${cor});"><i class="ph ph-chat-text"></i> <i>${item.Observacao}</i></div>` : '';
+                const badgeData = isFormRH ? `<span style="float:right; font-size:0.7rem; background:var(--bg); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">${dataEvento}</span>` : '';
 
                 html += `
                 <div style="padding: 8px 0; border-bottom: 1px dashed var(--border);">
-                    <strong style="color: var(--primary);">${item.Nome}</strong> <span style="color: var(--text-light); font-size: 0.7rem;">(${item.Matricula})</span><br>
+                    <strong style="color: var(--primary);">${item.Nome}</strong> <span style="color: var(--text-light); font-size: 0.7rem;">(${item.Matricula})</span> ${badgeData}<br>
                     <span style="color: var(--text-light); font-size: 0.8rem;">Líder: ${item.Lider}</span><br>
                     <span style="color: var(--dark); font-weight: 500; font-size: 0.85rem;">${infoPrincipal || '-'}</span>
                     ${obsTag}
@@ -958,13 +962,14 @@ window.aplicarFiltrosRH = function() {
     showToast(`${dadosFiltrados.length} registros encontrados.`, 'info');
 }
 
+// CORREÇÃO CRÍTICA NA TABELA DO RH PARA AS DATAS E STATUS
 function renderizarTabelaGeralRH(dados) {
     const thead = document.getElementById('thead-relatorio'); const tbody = document.getElementById('tbody-relatorio');
     
-    thead.innerHTML = `<tr><th>Data/Pedido</th><th>Tipo</th><th>Matrícula</th><th>Colaborador</th><th>Motivo</th><th>Líder</th><th>Observação</th><th>Status</th><th>Liberação</th><th>Retorno</th></tr>`;
+    thead.innerHTML = `<tr><th>Registro</th><th>Data do Evento</th><th>Tipo</th><th>Matrícula</th><th>Colaborador</th><th>Motivo</th><th>Líder</th><th>Observação</th><th>Status</th><th>Liberação</th><th>Retorno</th></tr>`;
     tbody.innerHTML = '';
     
-    if(dados.length === 0) return tbody.innerHTML = '<tr><td colspan="10" class="text-center">Nenhum dado encontrado.</td></tr>';
+    if(dados.length === 0) return tbody.innerHTML = '<tr><td colspan="11" class="text-center">Nenhum dado encontrado.</td></tr>';
     
     dados.reverse().forEach(d => {
         let bClass = 'pend';
@@ -972,22 +977,28 @@ function renderizarTabelaGeralRH(dados) {
         if(d.Status === 'Aguardando Retorno') bClass = 'ret';
         if(d.Status.includes('Faltou') || d.Status === 'Não Retornou') bClass = 'falta';
 
+        const isFormRH = ['Falta', 'Folga', 'CI'].includes(d.Motivo);
         const tipoDir = d.Direcao === 'Entrada' ? 'Entrada' : (d.Direcao === 'Lançamento RH' ? 'Reg. Interno' : 'Saída');
         
-        tbody.innerHTML += `<tr><td>${formatarISOparaBR(d.Data_Hora_Pedido)}</td><td><strong>${tipoDir}</strong></td><td>${d.Matricula}</td><td>${d.Nome}</td><td>${d.Motivo}</td><td>${d.Lider}</td><td>${d.Observacao || '-'}</td><td><span class="status-badge ${bClass}">${d.Status}</span></td><td>${formatarISOparaBR(d.Data_Hora_Saida)}</td><td style="${d.Status.includes('Faltou') || d.Status === 'Não Retornou' ? 'color:red; font-weight:bold;' : ''}">${formatarISOparaBR(d.Data_Hora_Retorno)}</td></tr>`;
+        const dataEvento = isFormRH ? formatarISOparaBR(d.Previsao_Saida).split(' ')[0] : '-';
+        const statusExibicao = isFormRH ? '-' : `<span class="status-badge ${bClass}">${d.Status}</span>`;
+        const libExibicao = isFormRH ? '-' : formatarISOparaBR(d.Data_Hora_Saida);
+        const retExibicao = isFormRH ? '-' : formatarISOparaBR(d.Data_Hora_Retorno);
+
+        tbody.innerHTML += `<tr>
+            <td>${formatarISOparaBR(d.Data_Hora_Pedido)}</td>
+            <td style="font-weight:bold; color:var(--primary);">${dataEvento}</td>
+            <td><strong>${tipoDir}</strong></td>
+            <td>${d.Matricula}</td>
+            <td>${d.Nome}</td>
+            <td>${d.Motivo}</td>
+            <td>${d.Lider}</td>
+            <td>${d.Observacao || '-'}</td>
+            <td>${statusExibicao}</td>
+            <td>${libExibicao}</td>
+            <td style="${d.Status && (d.Status.includes('Faltou') || d.Status === 'Não Retornou') ? 'color:red; font-weight:bold;' : ''}">${retExibicao}</td>
+        </tr>`;
     });
-}
-
-function renderizarTabelaRankingRH(dados) {
-    const thead = document.getElementById('thead-relatorio'); const tbody = document.getElementById('tbody-relatorio');
-    thead.innerHTML = `<tr><th>Posição</th><th>Matrícula</th><th>Colaborador</th><th>Total de Autorizações</th></tr>`;
-    tbody.innerHTML = '';
-    if(dados.length === 0) return tbody.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum dado encontrado.</td></tr>';
-
-    let mapa = {}; dados.forEach(d => { const k = `${d.Matricula}__${d.Nome}`; mapa[k] = (mapa[k] || 0) + 1; });
-    const rankArray = Object.keys(mapa).map(k => ({ matricula: k.split('__')[0], nome: k.split('__')[1], total: mapa[k] }));
-    rankArray.sort((a,b) => b.total - a.total);
-    rankArray.forEach((r, i) => { tbody.innerHTML += `<tr><td><strong>${i+1}º</strong></td><td>${r.matricula}</td><td>${r.nome}</td><td><span style="color:var(--accent); font-weight:bold;">${r.total}</span></td></tr>`; });
 }
 
 window.exportarExcel = function() {
