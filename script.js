@@ -145,7 +145,7 @@ function abrirSelecaoDePerfil(perfisDisponiveis) {
     
     const config = { 
         'LIDER': { icon: 'ph-users', bg: 'var(--grad-primary)', desc: 'Gestão de Lançamentos e Histórico' }, 
-        'PORTARIA': { icon: 'ph-door-open', bg: 'var(--grad-accent)', desc: 'Controle de Acessos Físicos (Cancela)' }, 
+        'PORTARIA': { icon: 'ph-door-open', bg: 'var(--grad-accent)', desc: 'Controle de Acessos Físicos' }, 
         'RH': { icon: 'ph-chart-pieSlice', bg: 'var(--grad-corp)', desc: 'Dashboards, Relatórios e Rankings globais' } 
     };
     
