@@ -1,7 +1,7 @@
 // ==========================================
 // CONFIGURAÇÃO DA API E VARIÁVEIS GLOBAIS
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbzoXv41yRgJEkYIAPRzDvRPp5aRh6PTj5TzbfaOTrKzT_yUwHn3xPtMB4F5TSlZS2wG9w/exec"; // <--- ATENÇÃO: COLE SUA URL AQUI
+const API_URL = "https://script.google.com/macros/s/AKfycbx5v9o3ncrevmaxASfJUPTSAlMAFZvAODfri3O40RqI6lxtWt3MaATWxXmuh6y6Eqxe4A/exec"; // <--- ATENÇÃO: COLE SUA URL AQUI
 let ultimoTotalPortaria = 0; 
 let intervaloPortaria = null; 
 let usuarioLogado = null;
