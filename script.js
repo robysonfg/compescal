@@ -1,7 +1,7 @@
 // ==========================================
 // CONFIGURAÇÃO DA API E VARIÁVEIS GLOBAIS
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbx5v9o3ncrevmaxASfJUPTSAlMAFZvAODfri3O40RqI6lxtWt3MaATWxXmuh6y6Eqxe4A/exec"; // <--- ATENÇÃO: COLE SUA URL AQUI
+const API_URL = "https://script.google.com/macros/s/AKfycbzoXv41yRgJEkYIAPRzDvRPp5aRh6PTj5TzbfaOTrKzT_yUwHn3xPtMB4F5TSlZS2wG9w/exec"; // <--- ATENÇÃO: COLE SUA URL AQUI
 let ultimoTotalPortaria = 0; 
 let intervaloPortaria = null; 
 let usuarioLogado = null;
@@ -9,7 +9,7 @@ let dadosGeraisRH = [];
 let direcaoAtual = ""; 
 
 // ==========================================
-// UTILIDADES E NAVEGAÇÃO
+// UTILIDADES
 // ==========================================
 function showToast(mensagem, tipo = 'sucesso') {
     const container = document.getElementById('toast-container');
@@ -66,24 +66,12 @@ window.toggleVisibilidade = function(idContainer, btnElement) {
     }
 }
 
-// ATUALIZAÇÃO CIRÚRGICA 1: O Limpa-Trilhos do Líder
 window.resetarTelasLider = function() {
     const telas = ['view-falta', 'view-folga', 'view-ci', 'form-autorizacao-box', 'view-historico-lider'];
     telas.forEach(id => {
         const el = document.getElementById(id);
         if(el) el.classList.add('hidden');
     });
-}
-
-window.abrirTela = function(idTela) {
-    window.resetarTelasLider(); // Fecha os outros antes de abrir
-    document.getElementById('selecao-direcao').classList.add('hidden');
-    document.getElementById(idTela).classList.remove('hidden');
-}
-
-window.voltarParaMenu = function() {
-    window.resetarTelasLider(); // Limpa tudo
-    document.getElementById('selecao-direcao').classList.remove('hidden'); // Volta o menu
 }
 
 // ==========================================
@@ -196,7 +184,6 @@ document.getElementById('btn-trocar-perfil').addEventListener('click', () => {
 function direcionarTela(perfil) {
     document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
     
-    // ATUALIZAÇÃO CIRÚRGICA 2: Garante que a tela do líder reseta se a pessoa clicar no botão de "Trocar Tela"
     if(window.voltarParaMenu) window.voltarParaMenu(); 
     
     if(perfil === 'LIDER') iniciarLider();
@@ -393,7 +380,7 @@ function configurarFormularioLider(idForm, tipoLancamento) {
         if(!nomeRaw || nomeRaw === 'Buscando...') return showToast("Aguarde ou faça a busca das matrículas primeiro.", "erro");
 
         const matriculasArray = matRaw.split(',').map(m => m.trim()).filter(m => m);
-        const nomesArray = nomeRaw.split('/').map(n => n.trim()).filter(n => n);
+        const nomesArray = nomeRaw.split('|').map(n => n.trim()).filter(n => n);
         const datasArray = dataInputRaw.split(',').map(d => d.trim()).filter(d => d);
 
         const btn = form.querySelector('button[type="submit"]');
@@ -451,7 +438,7 @@ function configurarFormularioLider(idForm, tipoLancamento) {
                 document.getElementById(`data-${sufixo}`).value = hoje;
             }
 
-            voltarParaMenu();
+            window.voltarParaMenu();
             iniciarLider(); 
         }
 
@@ -464,15 +451,25 @@ configurarFormularioLider('form-falta', 'Falta');
 configurarFormularioLider('form-folga', 'Folga');
 configurarFormularioLider('form-ci', 'CI');
 
+window.abrirTela = function(idTela) {
+    window.resetarTelasLider(); 
+    document.getElementById('selecao-direcao').classList.add('hidden');
+    document.getElementById(idTela).classList.remove('hidden');
+}
+
+window.voltarParaMenu = function() {
+    window.resetarTelasLider(); 
+    document.getElementById('selecao-direcao').classList.remove('hidden');
+}
+
 // ------------------------------------------
 // FORMULÁRIO ORIGINAL DE ENTRADA E SAÍDA
 // ------------------------------------------
 window.iniciarFormulario = function(tipo) {
     direcaoAtual = tipo;
-    window.resetarTelasLider(); // Limpa a tela
+    window.resetarTelasLider();
     document.getElementById('selecao-direcao').classList.add('hidden');
     document.getElementById('form-autorizacao-box').classList.remove('hidden');
-    
     document.getElementById('titulo-form').innerHTML = tipo === 'Saída' ? `<i class="ph ph-sign-out"></i> Autorizando Saída` : `<i class="ph ph-sign-in"></i> Autorizando Entrada`;
     document.getElementById('label-prev-acao').textContent = tipo === 'Saída' ? 'Prev. Saída' : 'Prev. Chegada';
     document.getElementById('prev-acao').value = dataHoraInputLocal();
@@ -490,7 +487,7 @@ window.iniciarFormulario = function(tipo) {
 
 window.voltarSelecao = function() {
     document.getElementById('form-autorizacao').reset();
-    window.voltarParaMenu(); // Limpa e volta
+    window.voltarParaMenu();
 }
 
 window.togglePrevisaoRetorno = function() {
@@ -500,6 +497,7 @@ window.togglePrevisaoRetorno = function() {
     else { box.classList.add('hidden'); input.required = false; input.value = ''; }
 }
 
+// ATUALIZAÇÃO CIRÚRGICA 3: Busca Síncrona Evita Troca de Nomes/Matrículas
 window.buscarColaborador = async function(idInputMatricula, idInputNome) {
     const matRaw = document.getElementById(idInputMatricula).value;
     if(!matRaw) return;
@@ -515,7 +513,8 @@ window.buscarColaborador = async function(idInputMatricula, idInputNome) {
     let nomesValidos = [];
     let erros = [];
 
-    await Promise.all(mats.map(async (mat) => {
+    // Busca um de cada vez para garantir a ordem exata do array
+    for (const mat of mats) {
         try {
             const res = await fetch(`${API_URL}?acao=buscar_colaborador&matricula=${mat}`);
             const data = await res.json();
@@ -523,16 +522,18 @@ window.buscarColaborador = async function(idInputMatricula, idInputNome) {
                 nomesValidos.push(data.dados.nome);
             } else { 
                 erros.push(mat);
+                nomesValidos.push('Não localizado');
             }
         } catch(e) { 
             erros.push(mat);
+            nomesValidos.push('Erro na Busca');
         }
-    }));
+    }
 
-    inputNome.value = nomesValidos.join(' / ');
+    inputNome.value = nomesValidos.join(' | ');
     
     if(erros.length > 0) {
-        showToast(`Matrículas não encontradas: ${erros.join(', ')}`, 'erro');
+        showToast(`Matrículas com erro: ${erros.join(', ')}`, 'erro');
         if(aviso) { aviso.textContent = "Erro em algumas matrículas."; aviso.classList.replace('text-light', 'text-danger'); }
     } else {
         if(aviso) aviso.classList.add('hidden');
@@ -557,13 +558,13 @@ document.getElementById('form-autorizacao').addEventListener('submit', async (e)
         formatarISOparaBR(document.getElementById('prev-acao').value),
         document.getElementById('vai-retornar').value,
         formatarISOparaBR(document.getElementById('prev-retorno').value), direcaoAtual,
-        `Aguardando Liberação de ${direcaoAtual}` // Manda explicitamente o status para saída e entrada
+        `Aguardando Liberação de ${direcaoAtual}` 
     ];
 
     try {
         const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ acao: 'nova_autorizacao', dados: dados }) });
         const data = await res.json();
-        if(data.status === 'sucesso') { showToast("Autorização enviada!", "sucesso"); voltarSelecao(); } 
+        if(data.status === 'sucesso') { showToast("Autorização enviada!", "sucesso"); window.voltarSelecao(); } 
         else { showToast(data.mensagem, "erro"); }
     } catch(err) { showToast("Falha na conexão.", "erro"); }
     
@@ -842,9 +843,6 @@ function gerarKPIsERanking(dados) {
         hoje: { saida: 0, entrada: 0, falta: 0, folga: 0, ci: 0 },
         mes: { saida: 0, entrada: 0, falta: 0, folga: 0, ci: 0 }
     };
-    
-    let rankingSaidas = {};
-    let rankingEntradas = {};
 
     dados.forEach(d => {
         const dataPedidoISO = extrairDataISO(d.Data_Hora_Pedido || d.Data);
@@ -868,12 +866,6 @@ function gerarKPIsERanking(dados) {
             if (isHoje) kpi.hoje[cat]++;
             if (isMes) kpi.mes[cat]++;
         }
-
-        if(isMes) {
-            const chaveColab = `${d.Matricula} - ${d.Nome}`;
-            if(d.Direcao === 'Saída') rankingSaidas[chaveColab] = (rankingSaidas[chaveColab] || 0) + 1;
-            else if(d.Direcao === 'Entrada') rankingEntradas[chaveColab] = (rankingEntradas[chaveColab] || 0) + 1;
-        }
     });
     
     if(document.getElementById('kpi-hoje-saida')) {
@@ -888,26 +880,6 @@ function gerarKPIsERanking(dados) {
         document.getElementById('kpi-mes-falta').textContent = kpi.mes.falta;
         document.getElementById('kpi-mes-folga').textContent = kpi.mes.folga;
         document.getElementById('kpi-mes-ci').textContent = kpi.mes.ci;
-    }
-    
-    const arraySaidas = Object.keys(rankingSaidas).map(key => { return { nome: key, total: rankingSaidas[key] }; });
-    arraySaidas.sort((a, b) => b.total - a.total);
-    const ulSaidas = document.getElementById('lista-ranking-saida'); 
-    if(ulSaidas) {
-        ulSaidas.innerHTML = '';
-        const top10Saidas = arraySaidas.slice(0, 10); 
-        if(top10Saidas.length === 0) { ulSaidas.innerHTML = '<li><span class="text-light">Nenhuma saída neste mês.</span></li>'; } 
-        else { top10Saidas.forEach((item, index) => { ulSaidas.innerHTML += `<li><span><strong>${index + 1}º</strong> ${item.nome}</span><span class="badge-rank">${item.total} req.</span></li>`; }); }
-    }
-
-    const arrayEntradas = Object.keys(rankingEntradas).map(key => { return { nome: key, total: rankingEntradas[key] }; });
-    arrayEntradas.sort((a, b) => b.total - a.total);
-    const ulEntradas = document.getElementById('lista-ranking-entrada'); 
-    if(ulEntradas) {
-        ulEntradas.innerHTML = '';
-        const top10Entradas = arrayEntradas.slice(0, 10); 
-        if(top10Entradas.length === 0) { ulEntradas.innerHTML = '<li><span class="text-light">Nenhuma entrada neste mês.</span></li>'; } 
-        else { top10Entradas.forEach((item, index) => { ulEntradas.innerHTML += `<li><span><strong>${index + 1}º</strong> ${item.nome}</span><span class="badge-rank" style="background:var(--primary);">${item.total} req.</span></li>`; }); }
     }
 }
 
@@ -949,26 +921,40 @@ window.aplicarFiltrosRH = function() {
     if (tipo === 'lider') {
         const val = document.getElementById('filtro-lider-select').value;
         if(val) dadosFiltrados = dadosFiltrados.filter(d => d.Lider === val);
+        renderizarTabelaGeralRH(dadosFiltrados);
     } 
     else if (tipo === 'colaborador') {
         const val = document.getElementById('filtro-colab-input').value.toLowerCase();
         if(val) dadosFiltrados = dadosFiltrados.filter(d => String(d.Matricula).toLowerCase().includes(val) || String(d.Nome).toLowerCase().includes(val));
+        renderizarTabelaGeralRH(dadosFiltrados);
     }
     else if (tipo === 'motivo') {
         const val = document.getElementById('filtro-motivo-select').value;
         if(val) dadosFiltrados = dadosFiltrados.filter(d => d.Motivo === val);
+        renderizarTabelaGeralRH(dadosFiltrados);
     }
     else if (tipo === 'Falta' || tipo === 'Folga' || tipo === 'CI') {
         dadosFiltrados = dadosFiltrados.filter(d => d.Motivo === tipo); 
+        renderizarTabelaGeralRH(dadosFiltrados);
     }
     else if (tipo === 'faltou_entrada') {
         dadosFiltrados = dadosFiltrados.filter(d => d.Status === 'Faltou - Entrada'); 
+        renderizarTabelaGeralRH(dadosFiltrados);
     }
     else if (tipo === 'faltou_saida') {
         dadosFiltrados = dadosFiltrados.filter(d => d.Status === 'Faltou - Saída' || d.Status === 'Não Retornou'); 
+        renderizarTabelaGeralRH(dadosFiltrados);
     }
-    
-    renderizarTabelaGeralRH(dadosFiltrados);
+    // ATUALIZAÇÃO CIRÚRGICA 4: Chamada dos Rankings Direcionados
+    else if (tipo === 'ranking_saidas') { 
+        renderizarTabelaRankingRH(dadosFiltrados, 'Saída'); 
+    } 
+    else if (tipo === 'ranking_entradas') { 
+        renderizarTabelaRankingRH(dadosFiltrados, 'Entrada'); 
+    } 
+    else { 
+        renderizarTabelaGeralRH(dadosFiltrados); 
+    }
     
     btn.innerHTML = txtOrg; btn.disabled = false;
     showToast(`${dadosFiltrados.length} registros encontrados.`, 'info');
@@ -986,7 +972,7 @@ function renderizarTabelaGeralRH(dados) {
         let bClass = 'pend';
         if(d.Status === 'Concluído' || d.Status === 'Saída Confirmada') bClass = 'ok';
         if(d.Status === 'Aguardando Retorno') bClass = 'ret';
-        if(d.Status.includes('Faltou') || d.Status === 'Não Retornou') bClass = 'falta';
+        if(d.Status && (d.Status.includes('Faltou') || d.Status === 'Não Retornou')) bClass = 'falta';
 
         const isFormRH = ['Falta', 'Folga', 'CI'].includes(d.Motivo);
         const tipoDir = d.Direcao === 'Entrada' ? 'Entrada' : (d.Direcao === 'Lançamento RH' ? 'Reg. Interno' : 'Saída');
@@ -1009,6 +995,36 @@ function renderizarTabelaGeralRH(dados) {
             <td>${libExibicao}</td>
             <td style="${d.Status && (d.Status.includes('Faltou') || d.Status === 'Não Retornou') ? 'color:red; font-weight:bold;' : ''}">${retExibicao}</td>
         </tr>`;
+    });
+}
+
+// ATUALIZAÇÃO CIRÚRGICA 5: Função de Ranking Compartilhada com a Direção
+function renderizarTabelaRankingRH(dados, direcaoRanking) {
+    const thead = document.getElementById('thead-relatorio'); const tbody = document.getElementById('tbody-relatorio');
+    thead.innerHTML = `<tr><th>Posição</th><th>Matrícula</th><th>Colaborador</th><th>Total de ${direcaoRanking === 'Saída' ? 'Saídas' : 'Entradas'}</th></tr>`;
+    tbody.innerHTML = '';
+    
+    const dadosRank = dados.filter(d => d.Direcao === direcaoRanking);
+    
+    if(dadosRank.length === 0) return tbody.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum dado encontrado.</td></tr>';
+
+    let mapa = {}; 
+    dadosRank.forEach(d => { 
+        const k = `${d.Matricula}__${d.Nome}`; 
+        mapa[k] = (mapa[k] || 0) + 1; 
+    });
+    
+    const rankArray = Object.keys(mapa).map(k => ({ matricula: k.split('__')[0], nome: k.split('__')[1], total: mapa[k] }));
+    rankArray.sort((a,b) => b.total - a.total);
+    
+    rankArray.forEach((r, i) => { 
+        const badgeCor = direcaoRanking === 'Saída' ? 'var(--accent)' : 'var(--primary)';
+        tbody.innerHTML += `<tr>
+            <td><strong>${i+1}º</strong></td>
+            <td>${r.matricula}</td>
+            <td>${r.nome}</td>
+            <td><span class="badge-rank" style="background:${badgeCor}; color:white; padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:bold;">${r.total}</span></td>
+        </tr>`; 
     });
 }
 
