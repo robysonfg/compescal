@@ -1,7 +1,7 @@
 // ==========================================
 // CONFIGURAÇÃO DA API E VARIÁVEIS GLOBAIS
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbzoXv41yRgJEkYIAPRzDvRPp5aRh6PTj5TzbfaOTrKzT_yUwHn3xPtMB4F5TSlZS2wG9w/exec"; // <--- ATENÇÃO: COLE SUA URL NOVA AQUI
+const API_URL = "https://script.google.com/macros/s/AKfycbwoH42pssbGXkLSXP2yO98vZbfc6yIr0xlifGWsbz6cmhytMQiHdr5DNrXvQ6Ashg8Ijg/exec"; // <--- ATENÇÃO: COLE SUA NOVA URL AQUI
 let ultimoTotalPortaria = 0; 
 let intervaloPortaria = null; 
 let usuarioLogado = null;
@@ -74,7 +74,6 @@ window.resetarTelasLider = function() {
     });
 }
 
-// O MOTOR ORM: Padroniza as colunas ignorando acentos ou erros de cabeçalho no Sheets
 function normalizarDadosBanco(dadosBrutos) {
     return dadosBrutos.map(d => {
         const vals = Object.values(d);
@@ -93,7 +92,7 @@ function normalizarDadosBanco(dadosBrutos) {
             Previsao_Retorno: d.Previsao_Retorno || vals[11] || '',
             Data_Hora_Retorno: d.Data_Hora_Retorno || vals[12] || '',
             Direcao: String(d.Direcao || d['Direção'] || vals[13] || '').trim(),
-            Data: d.Data || vals[1] || '' // Fallback adicional
+            Data: d.Data || vals[1] || '' 
         };
     });
 }
@@ -237,7 +236,7 @@ function carregarSaudacaoLider() {
 
 async function iniciarLider() {
     document.getElementById('tela-lider').classList.remove('hidden');
-    carregarSaudacaoLider(); voltarSelecao();
+    carregarSaudacaoLider(); window.voltarParaMenu();
     
     const hoje = new Date().toISOString().split('T')[0];
     if(document.getElementById('data-falta')) document.getElementById('data-falta').value = hoje;
@@ -283,7 +282,10 @@ async function iniciarLider() {
 }
 
 window.abrirHistoricoLider = function() {
-    abrirTela('view-historico-lider');
+    window.resetarTelasLider(); 
+    document.getElementById('selecao-direcao').classList.add('hidden');
+    document.getElementById('view-historico-lider').classList.remove('hidden');
+    
     const hoje = new Date().toISOString().split('T')[0];
     document.getElementById('filtro-hist-inicio').value = hoje;
     document.getElementById('filtro-hist-fim').value = hoje;
@@ -481,11 +483,6 @@ window.abrirTela = function(idTela) {
     document.getElementById(idTela).classList.remove('hidden');
 }
 
-window.voltarParaMenu = function() {
-    window.resetarTelasLider(); 
-    document.getElementById('selecao-direcao').classList.remove('hidden');
-}
-
 // ------------------------------------------
 // FORMULÁRIO ORIGINAL DE ENTRADA E SAÍDA
 // ------------------------------------------
@@ -536,7 +533,6 @@ window.buscarColaborador = async function(idInputMatricula, idInputNome) {
     let nomesValidos = [];
     let erros = [];
 
-    // Busca Síncrona Segura para não inverter nomes
     for (const mat of mats) {
         try {
             const res = await fetch(`${API_URL}?acao=buscar_colaborador&matricula=${mat}`);
@@ -794,7 +790,6 @@ async function iniciarRH() {
     try {
         const res = await fetch(`${API_URL}?tabela=Lancamentos`);
         const json = await res.json();
-        // PASSA PELO ORM PARA PADRONIZAR COLUNAS COM OU SEM ACENTOS
         dadosGeraisRH = normalizarDadosBanco(json.dados || []);
         
         gerarKPIsERanking(dadosGeraisRH);
@@ -1042,7 +1037,7 @@ window.aplicarFiltrosRH = function() {
     showToast(`${dadosFiltrados.length} registros encontrados.`, 'info');
 }
 
-// INTEGRAÇÃO COM FORTES
+// ATUALIZAÇÃO CIRÚRGICA 6: Tratamento blindado contra erros de JSON
 window.marcarComoLancado = async function(id, btn) {
     const txtOrg = btn.innerHTML;
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>'; 
@@ -1053,7 +1048,18 @@ window.marcarComoLancado = async function(id, btn) {
             method: 'POST',
             body: JSON.stringify({ acao: 'marcar_fortes', id: id })
         });
-        const data = await res.json();
+        
+        const textoResposta = await res.text();
+        let data;
+        
+        try {
+            data = JSON.parse(textoResposta);
+        } catch(e) {
+            // Se o servidor retornar HTML em vez de JSON, significa que a "Nova Implantação" não foi feita corretamente.
+            showToast("Erro Crítico: O servidor não encontrou a função. Você precisa fazer uma Nova Implantação no Apps Script e colar a URL nova no código!", "erro");
+            btn.innerHTML = txtOrg; btn.disabled = false;
+            return;
+        }
         
         if(data.status === 'sucesso') {
             showToast("Marcado como lançado no Fortes!", "sucesso");
@@ -1067,7 +1073,7 @@ window.marcarComoLancado = async function(id, btn) {
             btn.innerHTML = txtOrg; btn.disabled = false;
         }
     } catch(e) {
-        showToast("Erro de conexão.", "erro");
+        showToast("Erro de internet ou URL bloqueada.", "erro");
         btn.innerHTML = txtOrg; btn.disabled = false;
     }
 }
