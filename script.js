@@ -9,7 +9,7 @@ let dadosGeraisRH = [];
 let direcaoAtual = ""; 
 
 // ==========================================
-// UTILIDADES
+// UTILIDADES E MOTOR ORM (NORMALIZADOR)
 // ==========================================
 function showToast(mensagem, tipo = 'sucesso') {
     const container = document.getElementById('toast-container');
@@ -71,6 +71,30 @@ window.resetarTelasLider = function() {
     telas.forEach(id => {
         const el = document.getElementById(id);
         if(el) el.classList.add('hidden');
+    });
+}
+
+// O MOTOR ORM: Padroniza as colunas ignorando acentos ou erros de cabeçalho no Sheets
+function normalizarDadosBanco(dadosBrutos) {
+    return dadosBrutos.map(d => {
+        const vals = Object.values(d);
+        return {
+            ID: d.ID || d.Id || vals[0] || '',
+            Data_Hora_Pedido: d.Data_Hora_Pedido || d['Data/Hora Pedido'] || vals[1] || '',
+            Matricula: d.Matricula || d['Matrícula'] || vals[2] || '',
+            Nome: d.Nome || vals[3] || '',
+            Motivo: d.Motivo || vals[4] || '',
+            Lider: d.Lider || d['Líder'] || vals[5] || '',
+            Status: d.Status || vals[6] || '',
+            Data_Hora_Saida: d.Data_Hora_Saida || vals[7] || '',
+            Observacao: d.Observacao || d['Observação'] || vals[8] || '',
+            Previsao_Saida: d.Previsao_Saida || d['Prev. Saída'] || d['Previsão Saída'] || vals[9] || '',
+            Vai_Retornar: d.Vai_Retornar || vals[10] || '',
+            Previsao_Retorno: d.Previsao_Retorno || vals[11] || '',
+            Data_Hora_Retorno: d.Data_Hora_Retorno || vals[12] || '',
+            Direcao: String(d.Direcao || d['Direção'] || vals[13] || '').trim(),
+            Data: d.Data || vals[1] || '' // Fallback adicional
+        };
     });
 }
 
@@ -254,7 +278,7 @@ async function iniciarLider() {
 
         const resLanc = await fetch(`${API_URL}?tabela=Lancamentos`);
         const jsonLanc = await resLanc.json();
-        dadosGeraisRH = jsonLanc.dados || [];
+        dadosGeraisRH = normalizarDadosBanco(jsonLanc.dados || []);
     } catch(e) { console.log(e); }
 }
 
@@ -274,7 +298,7 @@ window.filtrarHistoricoLider = async function() {
     try {
         const res = await fetch(`${API_URL}?tabela=Lancamentos`);
         const json = await res.json();
-        dadosGeraisRH = json.dados || [];
+        dadosGeraisRH = normalizarDadosBanco(json.dados || []);
     } catch(e) { showToast("Erro ao buscar histórico recente.", "erro"); }
 
     const dtIn = document.getElementById('filtro-hist-inicio').value;
@@ -438,7 +462,7 @@ function configurarFormularioLider(idForm, tipoLancamento) {
                 document.getElementById(`data-${sufixo}`).value = hoje;
             }
 
-            voltarParaMenu();
+            window.voltarParaMenu();
             iniciarLider(); 
         }
 
@@ -512,7 +536,7 @@ window.buscarColaborador = async function(idInputMatricula, idInputNome) {
     let nomesValidos = [];
     let erros = [];
 
-    // O Segredo: Busca 1 por vez de forma organizada e sincrona para garantir o alinhamento
+    // Busca Síncrona Segura para não inverter nomes
     for (const mat of mats) {
         try {
             const res = await fetch(`${API_URL}?acao=buscar_colaborador&matricula=${mat}`);
@@ -532,7 +556,7 @@ window.buscarColaborador = async function(idInputMatricula, idInputNome) {
     inputNome.value = nomesValidos.join(' | ');
     
     if(erros.length > 0) {
-        showToast(`Matrículas com erro: ${erros.join(', ')}`, 'erro');
+        showToast(`Matrículas não encontradas: ${erros.join(', ')}`, 'erro');
         if(aviso) { aviso.textContent = "Erro em algumas matrículas."; aviso.classList.replace('text-light', 'text-danger'); }
     } else {
         if(aviso) aviso.classList.add('hidden');
@@ -647,7 +671,7 @@ async function carregarPortaria(silencioso = false) {
     try {
         const res = await fetch(`${API_URL}?tabela=Lancamentos`);
         const json = await res.json();
-        const autorizacoes = json.dados || [];
+        const autorizacoes = normalizarDadosBanco(json.dados || []);
 
         const pendentesPortaria = autorizacoes.filter(a => {
             if (a.Direcao === 'Lançamento RH' || ['Falta', 'Folga', 'CI'].includes(a.Motivo)) return false;
@@ -753,6 +777,16 @@ window.acionarPortaria = async function(id, nome, acao) {
 // ==========================================
 // 4. TELA RH (Dashboards e Filtros Avançados)
 // ==========================================
+window.abrirRelatoriosRH = function() {
+    document.getElementById('tela-rh').classList.add('hidden');
+    document.getElementById('tela-relatorios-rh').classList.remove('hidden');
+}
+
+window.voltarDashboardRH = function() {
+    document.getElementById('tela-relatorios-rh').classList.add('hidden');
+    document.getElementById('tela-rh').classList.remove('hidden');
+}
+
 async function iniciarRH() {
     document.getElementById('tela-rh').classList.remove('hidden');
     document.getElementById('card-dados-relatorio').classList.add('hidden');
@@ -760,7 +794,8 @@ async function iniciarRH() {
     try {
         const res = await fetch(`${API_URL}?tabela=Lancamentos`);
         const json = await res.json();
-        dadosGeraisRH = json.dados || [];
+        // PASSA PELO ORM PARA PADRONIZAR COLUNAS COM OU SEM ACENTOS
+        dadosGeraisRH = normalizarDadosBanco(json.dados || []);
         
         gerarKPIsERanking(dadosGeraisRH);
         carregarNotificacoesHoje(dadosGeraisRH); 
@@ -768,7 +803,7 @@ async function iniciarRH() {
         
         document.getElementById('tipo-relatorio').value = 'geral';
         toggleFiltrosRH();
-    } catch(e) { showToast("Erro no RH.", "erro"); }
+    } catch(e) { showToast("Erro no RH.", "erro"); console.log(e); }
 }
 
 function carregarNotificacoesHoje(dados) {
@@ -842,10 +877,12 @@ function gerarKPIsERanking(dados) {
         hoje: { saida: 0, entrada: 0, falta: 0, folga: 0, ci: 0 },
         mes: { saida: 0, entrada: 0, falta: 0, folga: 0, ci: 0 }
     };
+    
+    let rankingSaidas = {};
+    let rankingEntradas = {};
 
     dados.forEach(d => {
-        const dataPedidoISO = extrairDataISO(d.Data_Hora_Pedido || d.Data);
-        
+        const dataPedidoISO = extrairDataISO(d.Data_Hora_Pedido);
         const isMes = dataPedidoISO.startsWith(mesAtualISO);
         
         const d1 = extrairDataISO(d.Data_Hora_Pedido);
@@ -865,6 +902,12 @@ function gerarKPIsERanking(dados) {
             if (isHoje) kpi.hoje[cat]++;
             if (isMes) kpi.mes[cat]++;
         }
+
+        if(isMes) {
+            const chaveColab = `${d.Matricula} - ${d.Nome}`;
+            if(d.Direcao === 'Saída') rankingSaidas[chaveColab] = (rankingSaidas[chaveColab] || 0) + 1;
+            else if(d.Direcao === 'Entrada') rankingEntradas[chaveColab] = (rankingEntradas[chaveColab] || 0) + 1;
+        }
     });
     
     if(document.getElementById('kpi-hoje-saida')) {
@@ -880,15 +923,43 @@ function gerarKPIsERanking(dados) {
         document.getElementById('kpi-mes-folga').textContent = kpi.mes.folga;
         document.getElementById('kpi-mes-ci').textContent = kpi.mes.ci;
     }
+    
+    const arraySaidas = Object.keys(rankingSaidas).map(key => { return { nome: key, total: rankingSaidas[key] }; });
+    arraySaidas.sort((a, b) => b.total - a.total);
+    const ulSaidas = document.getElementById('lista-ranking-saida'); 
+    if(ulSaidas) {
+        ulSaidas.innerHTML = '';
+        const top10Saidas = arraySaidas.slice(0, 10); 
+        if(top10Saidas.length === 0) { ulSaidas.innerHTML = '<li><span class="text-light">Nenhuma saída neste mês.</span></li>'; } 
+        else { top10Saidas.forEach((item, index) => { ulSaidas.innerHTML += `<li><span><strong>${index + 1}º</strong> ${item.nome}</span><span class="badge-rank">${item.total} req.</span></li>`; }); }
+    }
+
+    const arrayEntradas = Object.keys(rankingEntradas).map(key => { return { nome: key, total: rankingEntradas[key] }; });
+    arrayEntradas.sort((a, b) => b.total - a.total);
+    const ulEntradas = document.getElementById('lista-ranking-entrada'); 
+    if(ulEntradas) {
+        ulEntradas.innerHTML = '';
+        const top10Entradas = arrayEntradas.slice(0, 10); 
+        if(top10Entradas.length === 0) { ulEntradas.innerHTML = '<li><span class="text-light">Nenhuma entrada neste mês.</span></li>'; } 
+        else { top10Entradas.forEach((item, index) => { ulEntradas.innerHTML += `<li><span><strong>${index + 1}º</strong> ${item.nome}</span><span class="badge-rank" style="background:var(--primary);">${item.total} req.</span></li>`; }); }
+    }
 }
 
 function preencherOpcoesFiltros(dados) {
     const lideres = [...new Set(dados.map(d => d.Lider).filter(l => l))];
     const motivos = [...new Set(dados.map(d => d.Motivo).filter(m => !['Falta', 'Folga', 'CI'].includes(m) && m))];
-    const selLider = document.getElementById('filtro-lider-select'); selLider.innerHTML = '<option value="">Todos</option>';
-    lideres.sort().forEach(l => selLider.innerHTML += `<option value="${l}">${l}</option>`);
-    const selMotivo = document.getElementById('filtro-motivo-select'); selMotivo.innerHTML = '<option value="">Todos</option>';
-    motivos.sort().forEach(m => selMotivo.innerHTML += `<option value="${m}">${m}</option>`);
+    
+    const selLider = document.getElementById('filtro-lider-select'); 
+    if(selLider) {
+        selLider.innerHTML = '<option value="">Todos</option>';
+        lideres.sort().forEach(l => selLider.innerHTML += `<option value="${l}">${l}</option>`);
+    }
+    
+    const selMotivo = document.getElementById('filtro-motivo-select'); 
+    if(selMotivo) {
+        selMotivo.innerHTML = '<option value="">Todos</option>';
+        motivos.sort().forEach(m => selMotivo.innerHTML += `<option value="${m}">${m}</option>`);
+    }
 }
 
 window.toggleFiltrosRH = function() {
@@ -900,7 +971,6 @@ window.toggleFiltrosRH = function() {
     if(tipo === 'lider') document.getElementById('box-filtro-lider').classList.remove('hidden');
     if(tipo === 'colaborador') document.getElementById('box-filtro-colab').classList.remove('hidden');
     
-    // Abre a opção de motivo se a pessoa estiver tirando relatório de motivos OU rankings!
     if(tipo === 'motivo' || tipo === 'ranking_saidas' || tipo === 'ranking_entradas') {
         document.getElementById('box-filtro-motivo').classList.remove('hidden');
     }
@@ -917,12 +987,11 @@ window.aplicarFiltrosRH = function() {
 
     document.getElementById('card-dados-relatorio').classList.remove('hidden');
 
-    // 1. FILTRA POR DATA
     let dadosFiltrados = dadosGeraisRH.filter(d => {
         let ok = true;
         if (dtIn || dtFim) {
             const isFormRH = ['Falta', 'Folga', 'CI'].includes(d.Motivo);
-            const dataBaseISO = isFormRH ? extrairDataISO(d.Previsao_Saida) : extrairDataISO(d.Data_Hora_Pedido || d.Data);
+            const dataBaseISO = isFormRH ? extrairDataISO(d.Previsao_Saida) : extrairDataISO(d.Data_Hora_Pedido);
             
             if (dtIn && dataBaseISO < dtIn) ok = false;
             if (dtFim && dataBaseISO > dtFim) ok = false;
@@ -930,12 +999,10 @@ window.aplicarFiltrosRH = function() {
         return ok;
     });
 
-    // 2. FILTRA OS RANKINGS COM BASE NA DATA E NO MOTIVO SELECIONADO
     if ((tipo === 'ranking_saidas' || tipo === 'ranking_entradas' || tipo === 'motivo') && motivoSelecionado) {
         dadosFiltrados = dadosFiltrados.filter(d => d.Motivo === motivoSelecionado);
     }
 
-    // 3. DIRECIONA PARA A TABELA CERTA
     if (tipo === 'lider') {
         const val = document.getElementById('filtro-lider-select').value;
         if(val) dadosFiltrados = dadosFiltrados.filter(d => d.Lider === val);
@@ -947,7 +1014,7 @@ window.aplicarFiltrosRH = function() {
         renderizarTabelaGeralRH(dadosFiltrados);
     }
     else if (tipo === 'motivo') {
-        renderizarTabelaGeralRH(dadosFiltrados); // O filtro já foi aplicado no passo 2
+        renderizarTabelaGeralRH(dadosFiltrados); 
     }
     else if (tipo === 'Falta' || tipo === 'Folga' || tipo === 'CI') {
         dadosFiltrados = dadosFiltrados.filter(d => d.Motivo === tipo); 
@@ -975,7 +1042,7 @@ window.aplicarFiltrosRH = function() {
     showToast(`${dadosFiltrados.length} registros encontrados.`, 'info');
 }
 
-// O NOVO BOTÃO DE MARCAR COMO LANÇADO
+// INTEGRAÇÃO COM FORTES
 window.marcarComoLancado = async function(id, btn) {
     const txtOrg = btn.innerHTML;
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>'; 
@@ -990,15 +1057,11 @@ window.marcarComoLancado = async function(id, btn) {
         
         if(data.status === 'sucesso') {
             showToast("Marcado como lançado no Fortes!", "sucesso");
-            
-            // Troca o botão pelo check visualmente
             const parent = btn.parentElement;
             parent.innerHTML = `<span class="status-badge ok" style="background:var(--success); color:white;"><i class="ph ph-check-circle"></i> Fortes OK</span>`;
             
-            // Atualiza os dados na memória para o botão não voltar se ele filtrar de novo
             const item = dadosGeraisRH.find(x => x.ID === id);
             if(item) item.Status = 'Lançado no Fortes';
-            
         } else {
             showToast(data.mensagem, "erro");
             btn.innerHTML = txtOrg; btn.disabled = false;
@@ -1015,7 +1078,7 @@ function renderizarTabelaGeralRH(dados) {
     thead.innerHTML = `<tr><th>Registro</th><th>Data do Evento</th><th>Tipo</th><th>Matrícula</th><th>Colaborador</th><th>Motivo</th><th>Líder</th><th>Observação</th><th>Status / Ação RH</th><th>Liberação</th><th>Retorno</th></tr>`;
     tbody.innerHTML = '';
     
-    if(dados.length === 0) return tbody.innerHTML = '<tr><td colspan=\"11\" class=\"text-center\">Nenhum dado encontrado.</td></tr>';
+    if(dados.length === 0) return tbody.innerHTML = '<tr><td colspan="11" class="text-center">Nenhum dado encontrado.</td></tr>';
     
     dados.reverse().forEach(d => {
         let bClass = 'pend';
@@ -1029,11 +1092,10 @@ function renderizarTabelaGeralRH(dados) {
         
         let statusExibicao = '';
         if (isFormRH) {
-            // Se já lançou no Fortes exibe selo, senão exibe o botão
             if (d.Status === 'Lançado no Fortes') {
                 statusExibicao = `<span class="status-badge ok" style="background:var(--success); color:white;"><i class="ph ph-check-circle"></i> Fortes OK</span>`;
             } else {
-                statusExibicao = `<button class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; border-radius:4px;" onclick="marcarComoLancado('${d.ID || d[0]}', this)"><i class="ph ph-upload-simple"></i> Lançar Fortes</button>`;
+                statusExibicao = `<button class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; border-radius:4px;" onclick="marcarComoLancado('${d.ID}', this)"><i class="ph ph-upload-simple"></i> Lançar Fortes</button>`;
             }
         } else {
             statusExibicao = (d.Status === '-') ? '-' : `<span class="status-badge ${bClass}">${d.Status}</span>`;
