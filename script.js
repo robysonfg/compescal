@@ -1,12 +1,13 @@
 // ==========================================
 // CONFIGURAÇÃO DA API E VARIÁVEIS GLOBAIS
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbwoH42pssbGXkLSXP2yO98vZbfc6yIr0xlifGWsbz6cmhytMQiHdr5DNrXvQ6Ashg8Ijg/exec"; // <--- ATENÇÃO: COLE SUA NOVA URL AQUI
+const API_URL = "https://script.google.com/macros/s/AKfycbx0R-qU1IRJFqFsiLGE92JuWsbvI4MOEeTIKcPDTzh-COCiVHARynIy_8hNCEVo-VvTLQ/exec"; // <--- ATENÇÃO: COLE SUA NOVA URL AQUI
 let ultimoTotalPortaria = 0; 
 let intervaloPortaria = null; 
 let usuarioLogado = null;
 let dadosGeraisRH = []; 
 let direcaoAtual = ""; 
+let liderInicializado = false; // Trava de memória para não bugar o botão de voltar
 
 // ==========================================
 // UTILIDADES E MOTOR ORM (NORMALIZADOR)
@@ -66,12 +67,15 @@ window.toggleVisibilidade = function(idContainer, btnElement) {
     }
 }
 
+// O "LIMPA-TRILHOS": Garante que nenhuma janela fique aberta e o botão Voltar funcione
 window.resetarTelasLider = function() {
     const telas = ['view-falta', 'view-folga', 'view-ci', 'form-autorizacao-box', 'view-historico-lider'];
     telas.forEach(id => {
         const el = document.getElementById(id);
         if(el) el.classList.add('hidden');
     });
+    const selecaoDirecao = document.getElementById('selecao-direcao');
+    if (selecaoDirecao) selecaoDirecao.classList.remove('hidden');
 }
 
 function normalizarDadosBanco(dadosBrutos) {
@@ -207,6 +211,7 @@ document.getElementById('btn-trocar-perfil').addEventListener('click', () => {
 function direcionarTela(perfil) {
     document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
     
+    // Antes de carregar uma tela, limpa tudo para não sobrepor janelas!
     if(window.voltarParaMenu) window.voltarParaMenu(); 
     
     if(perfil === 'LIDER') iniciarLider();
@@ -236,42 +241,48 @@ function carregarSaudacaoLider() {
 
 async function iniciarLider() {
     document.getElementById('tela-lider').classList.remove('hidden');
-    carregarSaudacaoLider(); window.voltarParaMenu();
+    carregarSaudacaoLider(); 
+    window.resetarTelasLider(); // Garante o reset visual
     
     const hoje = new Date().toISOString().split('T')[0];
     if(document.getElementById('data-falta')) document.getElementById('data-falta').value = hoje;
     if(document.getElementById('data-ci')) document.getElementById('data-ci').value = hoje;
 
-    if(document.getElementById('data-folga')) {
-        flatpickr("#data-folga", {
-            mode: "multiple",
-            dateFormat: "Y-m-d", 
-            altInput: true,      
-            altFormat: "d/m/Y",  
-            locale: "pt",
-            defaultDate: [hoje]
-        });
-    }
+    // Trava de memória para impedir sobreposição do Flatpickr
+    if (!liderInicializado) {
+        if(document.getElementById('data-folga')) {
+            flatpickr("#data-folga", {
+                mode: "multiple",
+                dateFormat: "Y-m-d", 
+                altInput: true,      
+                altFormat: "d/m/Y",  
+                locale: "pt",
+                defaultDate: [hoje]
+            });
+        }
 
-    const selMotivo = document.getElementById('motivo-saida');
-    if (selMotivo) {
-        selMotivo.addEventListener('change', function() {
-            const obs = document.getElementById('obs-saida');
-            if (this.value === 'Outros') {
-                obs.required = true;
-                obs.placeholder = "Obrigatório detalhar o motivo 'Outros'";
-                obs.style.border = "1px solid var(--accent)";
-            } else {
-                obs.required = false;
-                obs.placeholder = "(Opcional)";
-                obs.style.border = "1px solid var(--border)";
-            }
-        });
+        const selMotivo = document.getElementById('motivo-saida');
+        if (selMotivo) {
+            selMotivo.addEventListener('change', function() {
+                const obs = document.getElementById('obs-saida');
+                if (this.value === 'Outros') {
+                    obs.required = true;
+                    obs.placeholder = "Obrigatório detalhar o motivo 'Outros'";
+                    obs.style.border = "1px solid var(--accent)";
+                } else {
+                    obs.required = false;
+                    obs.placeholder = "(Opcional)";
+                    obs.style.border = "1px solid var(--border)";
+                }
+            });
+        }
+        liderInicializado = true;
     }
 
     try {
         const res = await fetch(`${API_URL}?tabela=Motivos`);
         const json = await res.json();
+        const selMotivo = document.getElementById('motivo-saida');
         selMotivo.innerHTML = '<option value="">Selecione...</option>';
         if(json.dados) json.dados.forEach(m => selMotivo.innerHTML += `<option value="${m.Motivo}">${m.Motivo}</option>`);
 
@@ -281,15 +292,24 @@ async function iniciarLider() {
     } catch(e) { console.log(e); }
 }
 
-window.abrirHistoricoLider = function() {
+window.abrirTela = function(idTela) {
     window.resetarTelasLider(); 
     document.getElementById('selecao-direcao').classList.add('hidden');
-    document.getElementById('view-historico-lider').classList.remove('hidden');
+    document.getElementById(idTela).classList.remove('hidden');
+}
+
+window.voltarParaMenu = function() {
+    window.resetarTelasLider(); 
+}
+
+window.abrirHistoricoLider = function() {
+    window.abrirTela('view-historico-lider');
     
     const hoje = new Date().toISOString().split('T')[0];
     document.getElementById('filtro-hist-inicio').value = hoje;
     document.getElementById('filtro-hist-fim').value = hoje;
     document.getElementById('filtro-hist-mat').value = '';
+    
     filtrarHistoricoLider(); 
 }
 
@@ -477,20 +497,13 @@ configurarFormularioLider('form-falta', 'Falta');
 configurarFormularioLider('form-folga', 'Folga');
 configurarFormularioLider('form-ci', 'CI');
 
-window.abrirTela = function(idTela) {
-    window.resetarTelasLider(); 
-    document.getElementById('selecao-direcao').classList.add('hidden');
-    document.getElementById(idTela).classList.remove('hidden');
-}
-
 // ------------------------------------------
 // FORMULÁRIO ORIGINAL DE ENTRADA E SAÍDA
 // ------------------------------------------
 window.iniciarFormulario = function(tipo) {
     direcaoAtual = tipo;
-    window.resetarTelasLider();
-    document.getElementById('selecao-direcao').classList.add('hidden');
-    document.getElementById('form-autorizacao-box').classList.remove('hidden');
+    window.abrirTela('form-autorizacao-box');
+    
     document.getElementById('titulo-form').innerHTML = tipo === 'Saída' ? `<i class="ph ph-sign-out"></i> Autorizando Saída` : `<i class="ph ph-sign-in"></i> Autorizando Entrada`;
     document.getElementById('label-prev-acao').textContent = tipo === 'Saída' ? 'Prev. Saída' : 'Prev. Chegada';
     document.getElementById('prev-acao').value = dataHoraInputLocal();
@@ -877,7 +890,8 @@ function gerarKPIsERanking(dados) {
     let rankingEntradas = {};
 
     dados.forEach(d => {
-        const dataPedidoISO = extrairDataISO(d.Data_Hora_Pedido);
+        const dataPedidoISO = extrairDataISO(d.Data_Hora_Pedido || d.Data);
+        
         const isMes = dataPedidoISO.startsWith(mesAtualISO);
         
         const d1 = extrairDataISO(d.Data_Hora_Pedido);
@@ -1037,7 +1051,7 @@ window.aplicarFiltrosRH = function() {
     showToast(`${dadosFiltrados.length} registros encontrados.`, 'info');
 }
 
-// ATUALIZAÇÃO CIRÚRGICA 6: Tratamento blindado contra erros de JSON
+// CORREÇÃO CRÍTICA DO BOTÃO LANÇAR FORTES (Tolerância a Erro HTML)
 window.marcarComoLancado = async function(id, btn) {
     const txtOrg = btn.innerHTML;
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>'; 
@@ -1055,8 +1069,7 @@ window.marcarComoLancado = async function(id, btn) {
         try {
             data = JSON.parse(textoResposta);
         } catch(e) {
-            // Se o servidor retornar HTML em vez de JSON, significa que a "Nova Implantação" não foi feita corretamente.
-            showToast("Erro Crítico: O servidor não encontrou a função. Você precisa fazer uma Nova Implantação no Apps Script e colar a URL nova no código!", "erro");
+            showToast("Servidor desatualizado! Atualize o Apps Script com a 'Nova Implantação'.", "erro");
             btn.innerHTML = txtOrg; btn.disabled = false;
             return;
         }
