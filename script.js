@@ -1,7 +1,7 @@
 // ==========================================
 // CONFIGURAÇÃO DA API E VARIÁVEIS GLOBAIS
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbzoXv41yRgJEkYIAPRzDvRPp5aRh6PTj5TzbfaOTrKzT_yUwHn3xPtMB4F5TSlZS2wG9w/exec"; // <--- ATENÇÃO: COLE SUA URL AQUI
+const API_URL = "https://script.google.com/macros/s/AKfycbzoXv41yRgJEkYIAPRzDvRPp5aRh6PTj5TzbfaOTrKzT_yUwHn3xPtMB4F5TSlZS2wG9w/exec"; // <--- ATENÇÃO: COLE SUA URL NOVA AQUI
 let ultimoTotalPortaria = 0; 
 let intervaloPortaria = null; 
 let usuarioLogado = null;
@@ -438,7 +438,7 @@ function configurarFormularioLider(idForm, tipoLancamento) {
                 document.getElementById(`data-${sufixo}`).value = hoje;
             }
 
-            window.voltarParaMenu();
+            voltarParaMenu();
             iniciarLider(); 
         }
 
@@ -497,7 +497,6 @@ window.togglePrevisaoRetorno = function() {
     else { box.classList.add('hidden'); input.required = false; input.value = ''; }
 }
 
-// ATUALIZAÇÃO CIRÚRGICA 3: Busca Síncrona Evita Troca de Nomes/Matrículas
 window.buscarColaborador = async function(idInputMatricula, idInputNome) {
     const matRaw = document.getElementById(idInputMatricula).value;
     if(!matRaw) return;
@@ -513,7 +512,7 @@ window.buscarColaborador = async function(idInputMatricula, idInputNome) {
     let nomesValidos = [];
     let erros = [];
 
-    // Busca um de cada vez para garantir a ordem exata do array
+    // O Segredo: Busca 1 por vez de forma organizada e sincrona para garantir o alinhamento
     for (const mat of mats) {
         try {
             const res = await fetch(`${API_URL}?acao=buscar_colaborador&matricula=${mat}`);
@@ -894,30 +893,49 @@ function preencherOpcoesFiltros(dados) {
 
 window.toggleFiltrosRH = function() {
     const tipo = document.getElementById('tipo-relatorio').value;
-    document.getElementById('box-filtro-lider').classList.add('hidden'); document.getElementById('box-filtro-colab').classList.add('hidden'); document.getElementById('box-filtro-motivo').classList.add('hidden');
+    document.getElementById('box-filtro-lider').classList.add('hidden'); 
+    document.getElementById('box-filtro-colab').classList.add('hidden'); 
+    document.getElementById('box-filtro-motivo').classList.add('hidden');
+    
     if(tipo === 'lider') document.getElementById('box-filtro-lider').classList.remove('hidden');
     if(tipo === 'colaborador') document.getElementById('box-filtro-colab').classList.remove('hidden');
-    if(tipo === 'motivo') document.getElementById('box-filtro-motivo').classList.remove('hidden');
+    
+    // Abre a opção de motivo se a pessoa estiver tirando relatório de motivos OU rankings!
+    if(tipo === 'motivo' || tipo === 'ranking_saidas' || tipo === 'ranking_entradas') {
+        document.getElementById('box-filtro-motivo').classList.remove('hidden');
+    }
 }
 
 window.aplicarFiltrosRH = function() {
     const tipo = document.getElementById('tipo-relatorio').value;
-    const dtIn = document.getElementById('filtro-data-inicio').value; const dtFim = document.getElementById('filtro-data-fim').value; 
+    const dtIn = document.getElementById('filtro-data-inicio').value; 
+    const dtFim = document.getElementById('filtro-data-fim').value; 
+    const motivoSelecionado = document.getElementById('filtro-motivo-select').value;
+    
     const btn = document.querySelector('.filter-group').nextElementSibling;
     const txtOrg = btn.innerHTML; btn.innerHTML = 'Filtrando...'; btn.disabled = true;
 
     document.getElementById('card-dados-relatorio').classList.remove('hidden');
 
+    // 1. FILTRA POR DATA
     let dadosFiltrados = dadosGeraisRH.filter(d => {
         let ok = true;
         if (dtIn || dtFim) {
-            const dFmt = extrairDataISO(d.Data_Hora_Pedido || d.Data);
-            if (dtIn && dFmt < dtIn) ok = false;
-            if (dtFim && dFmt > dtFim) ok = false;
+            const isFormRH = ['Falta', 'Folga', 'CI'].includes(d.Motivo);
+            const dataBaseISO = isFormRH ? extrairDataISO(d.Previsao_Saida) : extrairDataISO(d.Data_Hora_Pedido || d.Data);
+            
+            if (dtIn && dataBaseISO < dtIn) ok = false;
+            if (dtFim && dataBaseISO > dtFim) ok = false;
         }
         return ok;
     });
 
+    // 2. FILTRA OS RANKINGS COM BASE NA DATA E NO MOTIVO SELECIONADO
+    if ((tipo === 'ranking_saidas' || tipo === 'ranking_entradas' || tipo === 'motivo') && motivoSelecionado) {
+        dadosFiltrados = dadosFiltrados.filter(d => d.Motivo === motivoSelecionado);
+    }
+
+    // 3. DIRECIONA PARA A TABELA CERTA
     if (tipo === 'lider') {
         const val = document.getElementById('filtro-lider-select').value;
         if(val) dadosFiltrados = dadosFiltrados.filter(d => d.Lider === val);
@@ -929,9 +947,7 @@ window.aplicarFiltrosRH = function() {
         renderizarTabelaGeralRH(dadosFiltrados);
     }
     else if (tipo === 'motivo') {
-        const val = document.getElementById('filtro-motivo-select').value;
-        if(val) dadosFiltrados = dadosFiltrados.filter(d => d.Motivo === val);
-        renderizarTabelaGeralRH(dadosFiltrados);
+        renderizarTabelaGeralRH(dadosFiltrados); // O filtro já foi aplicado no passo 2
     }
     else if (tipo === 'Falta' || tipo === 'Folga' || tipo === 'CI') {
         dadosFiltrados = dadosFiltrados.filter(d => d.Motivo === tipo); 
@@ -945,7 +961,6 @@ window.aplicarFiltrosRH = function() {
         dadosFiltrados = dadosFiltrados.filter(d => d.Status === 'Faltou - Saída' || d.Status === 'Não Retornou'); 
         renderizarTabelaGeralRH(dadosFiltrados);
     }
-    // ATUALIZAÇÃO CIRÚRGICA 4: Chamada dos Rankings Direcionados
     else if (tipo === 'ranking_saidas') { 
         renderizarTabelaRankingRH(dadosFiltrados, 'Saída'); 
     } 
@@ -960,13 +975,47 @@ window.aplicarFiltrosRH = function() {
     showToast(`${dadosFiltrados.length} registros encontrados.`, 'info');
 }
 
+// O NOVO BOTÃO DE MARCAR COMO LANÇADO
+window.marcarComoLancado = async function(id, btn) {
+    const txtOrg = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>'; 
+    btn.disabled = true;
+    
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ acao: 'marcar_fortes', id: id })
+        });
+        const data = await res.json();
+        
+        if(data.status === 'sucesso') {
+            showToast("Marcado como lançado no Fortes!", "sucesso");
+            
+            // Troca o botão pelo check visualmente
+            const parent = btn.parentElement;
+            parent.innerHTML = `<span class="status-badge ok" style="background:var(--success); color:white;"><i class="ph ph-check-circle"></i> Fortes OK</span>`;
+            
+            // Atualiza os dados na memória para o botão não voltar se ele filtrar de novo
+            const item = dadosGeraisRH.find(x => x.ID === id);
+            if(item) item.Status = 'Lançado no Fortes';
+            
+        } else {
+            showToast(data.mensagem, "erro");
+            btn.innerHTML = txtOrg; btn.disabled = false;
+        }
+    } catch(e) {
+        showToast("Erro de conexão.", "erro");
+        btn.innerHTML = txtOrg; btn.disabled = false;
+    }
+}
+
 function renderizarTabelaGeralRH(dados) {
     const thead = document.getElementById('thead-relatorio'); const tbody = document.getElementById('tbody-relatorio');
     
-    thead.innerHTML = `<tr><th>Registro</th><th>Data do Evento</th><th>Tipo</th><th>Matrícula</th><th>Colaborador</th><th>Motivo</th><th>Líder</th><th>Observação</th><th>Status</th><th>Liberação</th><th>Retorno</th></tr>`;
+    thead.innerHTML = `<tr><th>Registro</th><th>Data do Evento</th><th>Tipo</th><th>Matrícula</th><th>Colaborador</th><th>Motivo</th><th>Líder</th><th>Observação</th><th>Status / Ação RH</th><th>Liberação</th><th>Retorno</th></tr>`;
     tbody.innerHTML = '';
     
-    if(dados.length === 0) return tbody.innerHTML = '<tr><td colspan="11" class="text-center">Nenhum dado encontrado.</td></tr>';
+    if(dados.length === 0) return tbody.innerHTML = '<tr><td colspan=\"11\" class=\"text-center\">Nenhum dado encontrado.</td></tr>';
     
     dados.reverse().forEach(d => {
         let bClass = 'pend';
@@ -976,9 +1025,20 @@ function renderizarTabelaGeralRH(dados) {
 
         const isFormRH = ['Falta', 'Folga', 'CI'].includes(d.Motivo);
         const tipoDir = d.Direcao === 'Entrada' ? 'Entrada' : (d.Direcao === 'Lançamento RH' ? 'Reg. Interno' : 'Saída');
-        
         const dataEvento = isFormRH ? formatarISOparaBR(d.Previsao_Saida).split(' ')[0] : '-';
-        const statusExibicao = (isFormRH || d.Status === '-') ? '-' : `<span class="status-badge ${bClass}">${d.Status}</span>`;
+        
+        let statusExibicao = '';
+        if (isFormRH) {
+            // Se já lançou no Fortes exibe selo, senão exibe o botão
+            if (d.Status === 'Lançado no Fortes') {
+                statusExibicao = `<span class="status-badge ok" style="background:var(--success); color:white;"><i class="ph ph-check-circle"></i> Fortes OK</span>`;
+            } else {
+                statusExibicao = `<button class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; border-radius:4px;" onclick="marcarComoLancado('${d.ID || d[0]}', this)"><i class="ph ph-upload-simple"></i> Lançar Fortes</button>`;
+            }
+        } else {
+            statusExibicao = (d.Status === '-') ? '-' : `<span class="status-badge ${bClass}">${d.Status}</span>`;
+        }
+
         const libExibicao = isFormRH ? '-' : formatarISOparaBR(d.Data_Hora_Saida);
         const retExibicao = isFormRH ? '-' : formatarISOparaBR(d.Data_Hora_Retorno);
 
@@ -998,7 +1058,6 @@ function renderizarTabelaGeralRH(dados) {
     });
 }
 
-// ATUALIZAÇÃO CIRÚRGICA 5: Função de Ranking Compartilhada com a Direção
 function renderizarTabelaRankingRH(dados, direcaoRanking) {
     const thead = document.getElementById('thead-relatorio'); const tbody = document.getElementById('tbody-relatorio');
     thead.innerHTML = `<tr><th>Posição</th><th>Matrícula</th><th>Colaborador</th><th>Total de ${direcaoRanking === 'Saída' ? 'Saídas' : 'Entradas'}</th></tr>`;
@@ -1006,7 +1065,7 @@ function renderizarTabelaRankingRH(dados, direcaoRanking) {
     
     const dadosRank = dados.filter(d => d.Direcao === direcaoRanking);
     
-    if(dadosRank.length === 0) return tbody.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum dado encontrado.</td></tr>';
+    if(dadosRank.length === 0) return tbody.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum dado encontrado neste período/motivo.</td></tr>';
 
     let mapa = {}; 
     dadosRank.forEach(d => { 
