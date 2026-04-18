@@ -31,7 +31,7 @@
                 <div class="input-group"><label>Usuário</label><input type="text" id="login-user" required></div>
                 <div class="input-group"><label>Senha</label><input type="password" id="login-senha" required></div>
                 <button type="submit" class="btn btn-primary btn-block">Entrar</button>
-                <div class="version-control">Versão: v2.11.0</div>
+                <div class="version-control">Versão: v2.12.0 Enterprise UI</div>
             </form>
         </div>
     </div>
@@ -210,9 +210,15 @@
             </section>
 
             <section id="tela-rh" class="view-section hidden">
-                <button class="btn btn-secondary btn-block mb-1" onclick="iniciarRH()"><i class="ph ph-arrows-clockwise"></i> Atualizar Tela</button>
+                <button class="btn btn-secondary btn-block mb-1" onclick="iniciarRH()"><i class="ph ph-arrows-clockwise"></i> Atualizar Painel</button>
                 
-                <div class="card mb-1">
+                <div class="card mt-1" style="background: var(--grad-corp); padding: 2rem; text-align: center; border-radius: 16px; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.15);" onclick="abrirRelatoriosRH()">
+                    <i class="ph ph-list-magnifying-glass" style="font-size: 3rem; color: white; margin-bottom: 10px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));"></i>
+                    <h3 style="color: white; border: none; justify-content: center; font-size: 1.4rem; margin-bottom: 0;">Relatórios Avançados e Fortes</h3>
+                    <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-top:5px;">Acesse filtros, exporte dados e gerencie Lançamentos do Fortes.</p>
+                </div>
+
+                <div class="card mb-1 mt-1">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 2px solid var(--primary); padding-bottom: 10px;">
                         <h3 class="text-primary" style="margin: 0; border: none; padding: 0;"><i class="ph ph-bell-ringing"></i> Movimentações de Hoje (Tempo Real)</h3>
                         <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('painel-notificacoes-rh', this)"><i class="ph ph-minus"></i></button>
@@ -267,11 +273,14 @@
                         <ul id="lista-ranking-entrada" class="ranking-list"></ul>
                     </div>
                 </div>
+            </section>
 
+            <section id="tela-relatorios-rh" class="view-section hidden">
+                <button class="btn btn-secondary btn-block mb-1" onclick="voltarDashboardRH()"><i class="ph ph-arrow-left"></i> Voltar ao Painel Principal</button>
+                
                 <div class="card mt-1">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h3><i class="ph ph-funnel"></i> Relatórios Avançados</h3>
-                        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('filtros-container', this)"><i class="ph ph-minus"></i></button>
+                        <h3><i class="ph ph-funnel"></i> Filtros de Relatórios</h3>
                     </div>
                     
                     <div id="filtros-container">
@@ -296,7 +305,7 @@
                             </div>
                             <div class="input-group hidden" id="box-filtro-lider" style="grid-column: 1 / -1;"><label>Líder:</label><select id="filtro-lider-select"></select></div>
                             <div class="input-group hidden" id="box-filtro-colab" style="grid-column: 1 / -1;"><label>Nome ou Matrícula:</label><input type="text" id="filtro-colab-input"></div>
-                            <div class="input-group hidden" id="box-filtro-motivo" style="grid-column: 1 / -1;"><label>Motivo:</label><select id="filtro-motivo-select"></select></div>
+                            <div class="input-group hidden" id="box-filtro-motivo" style="grid-column: 1 / -1;"><label>Motivo Específico (Opcional):</label><select id="filtro-motivo-select"></select></div>
                         </div>
                         <button class="btn btn-primary btn-block mt-1" onclick="aplicarFiltrosRH()"><i class="ph ph-magnifying-glass"></i> Gerar Relatório</button>
                     </div>
