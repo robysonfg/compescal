@@ -166,7 +166,6 @@ function abrirTrocaDeSenha(loginUser) {
     };
 }
 
-// INJETADO O MÓDULO AGENDAMENTO NO CARTÃO POSTAL
 function abrirSelecaoDePerfil(perfisDisponiveis) {
     const box = document.getElementById('botoes-perfis');
     box.innerHTML = '';
@@ -202,7 +201,7 @@ function direcionarTela(perfil) {
     if(perfil === 'LIDER') iniciarLider();
     else if(perfil === 'PORTARIA') iniciarPortaria();
     else if(perfil === 'RH') iniciarRH();
-    else if(perfil === 'AGENDAMENTO') iniciarAgendamento(); // NOVO
+    else if(perfil === 'AGENDAMENTO') iniciarAgendamento(); 
 }
 
 document.getElementById('btn-logout').addEventListener('click', () => {
@@ -235,8 +234,7 @@ window.buscarVisitanteMemoria = function() {
     const aviso = document.getElementById('aviso-cpf');
     aviso.classList.remove('hidden');
 
-    // Vasculha os lançamentos antigos para achar a última visita desse CPF
-    const visitante = dadosGeraisRH.find(d => String(d.Matricula) === cpfRaw && d.Direcao === 'Visita');
+    const visitante = dadosGeraisRH.find(d => String(d.Matricula).trim() === cpfRaw && d.Direcao === 'Visita');
 
     if(visitante) {
         document.getElementById('nome-visitante').value = visitante.Nome || '';
@@ -273,7 +271,9 @@ document.getElementById('form-agendamento').addEventListener('submit', async (e)
     const btn = document.getElementById('btn-submit-visita');
     const txtOrg = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Agendando...'; btn.disabled = true;
 
-    const cpf = document.getElementById('cpf-visitante').value.trim();
+    // HACK INVISÍVEL: O espaço no final força o Google Sheets a aceitar CPF com zero sem destruir o zero
+    const cpf = document.getElementById('cpf-visitante').value.trim() + " "; 
+    
     const nome = document.getElementById('nome-visitante').value;
     const tel = document.getElementById('tel-visitante').value;
     const empresa = document.getElementById('empresa-visitante').value;
@@ -286,15 +286,15 @@ document.getElementById('form-agendamento').addEventListener('submit', async (e)
     const obsFormatada = (veiculo || placa) ? `${veiculo} | Placa: ${placa}` : '';
 
     const dados = [
-        formatarISOparaBR(dataHoraInputLocal()), // Pedido 
-        cpf,                                     // Matrícula
-        nome,                                    // Nome
-        motivo,                                  // Motivo
-        liderFormatado,                          // Empresa/Tel guardado no Líder
-        obsFormatada,                            // Veiculo/Placa guardado na Obs
-        formatarISOparaBR(dataVisita),           // Previsao Saída = Data da Visita
-        'Não', '', 'Visita',                     // Direção Fixa = Visita
-        'Aguardando Visita'                      // Status Explicito de Visita
+        formatarISOparaBR(dataHoraInputLocal()), 
+        cpf,                                     
+        nome,                                    
+        motivo,                                  
+        liderFormatado,                          
+        obsFormatada,                            
+        formatarISOparaBR(dataVisita),           
+        'Não', '', 'Visita',                     
+        'Aguardando Visita'                      
     ];
 
     try {
@@ -653,25 +653,26 @@ async function carregarPortaria(silencioso = false) {
 
             const detalhesComuns = auth.Direcao === 'Visita' ? detalhesVisita : `<div class="details"><div><strong>Matrícula:</strong> ${auth.Matricula}</div><div><strong>Motivo:</strong> ${auth.Motivo}</div><div><strong>Líder:</strong> ${auth.Lider}</div>${auth.Observacao ? `<div><strong>Obs:</strong> ${auth.Observacao}</div>` : ''}</div>`;
 
+            // CORREÇÃO: Visitas independentes de possíveis falhas do servidor antigo
             if (auth.Direcao === 'Visita') {
-                if (auth.Status === "Aguardando Visita") {
+                if (auth.Status && auth.Status.includes("Aguardando")) {
                     hVAg += `<div class="auth-card" id="card-${auth.ID}" style="border-left-color: var(--visita);"><div style="display:flex; justify-content:space-between;"><div class="name">${auth.Nome}</div> <span class="tag-sim" style="background:#F3E8FF; color:var(--visita);">Visitante</span></div>${detalhesComuns}<div class="details"><strong>Prev. Chegada:</strong> <span style="color:var(--visita); font-weight:bold;">${pAcaoBR}</span></div><button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'entrada_visita')" class="btn btn-visita mt-1"><i class="ph ph-sign-in"></i> Confirmar Entrada</button></div>`;
                 } 
-                else if (auth.Status === "Visita no Local") {
+                else if (auth.Status === "Visita no Local" || auth.Status.includes("Entrada")) {
                     hVL += `<div class="auth-card" id="card-${auth.ID}" style="border-left-color: var(--visita-local);"><div style="display:flex; justify-content:space-between;"><div class="name">${auth.Nome}</div></div>${detalhesComuns}<div class="details"><strong>Entrou às:</strong> ${acaoRealBR}</div><button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'saida_visita')" class="btn mt-1" style="background:var(--visita-local); color:white;"><i class="ph ph-sign-out"></i> Confirmar Saída</button></div>`;
                 }
             } 
-            else if (auth.Status === "Aguardando Liberação de Saída" || auth.Status === "Aguardando Portaria") {
+            else if (auth.Status && (auth.Status === "Aguardando Liberação de Saída" || auth.Status === "Aguardando Portaria")) {
                 hS += `<div class="auth-card" id="card-${auth.ID}" style="border-left-color: var(--accent);"><div style="display:flex; justify-content:space-between;"><div class="name">${auth.Nome}</div> ${vaiRetornarTag}</div>${detalhesComuns}<div class="details"><strong>Prev. Saída:</strong> <span class="text-danger">${pAcaoBR}</span></div><button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'saida')" class="btn btn-danger mt-1"><i class="ph ph-sign-out"></i> Confirmar Saída</button></div>`;
             } 
-            else if (auth.Status === "Aguardando Liberação de Entrada") {
+            else if (auth.Status && auth.Status === "Aguardando Liberação de Entrada") {
                 hE += `<div class="auth-card" id="card-${auth.ID}" style="border-left-color: var(--primary);"><div class="name">${auth.Nome}</div>${detalhesComuns}<div class="details"><strong>Prev. Chegada:</strong> <span class="text-primary">${pAcaoBR}</span></div><div style="display:flex; gap:10px; margin-top:10px;"><button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'entrada')" class="btn btn-primary" style="flex:2;"><i class="ph ph-sign-in"></i> Confirmar Entrada</button><button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'faltou_entrada')" class="btn btn-dark" style="flex:1;"><i class="ph ph-x-circle"></i> Faltou</button></div></div>`;
             }
-            else if (auth.Status === "Aguardando Retorno") {
+            else if (auth.Status && auth.Status === "Aguardando Retorno") {
                 hR += `<div class="auth-card" id="card-${auth.ID}" style="border-left-color: var(--warning);"><div class="name">${auth.Nome}</div>${detalhesComuns}<div class="details"><strong>Saiu às:</strong> ${acaoRealBR}</div><div class="details"><strong>Prev. Retorno:</strong> <span style="color:var(--warning); font-weight:bold;">${pRetornoBR}</span></div><div style="display:flex; gap:10px; margin-top:10px;"><button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'retorno')" class="btn" style="flex:2; background-color: var(--warning); color: white;"><i class="ph ph-clock-counter-clockwise"></i> Confirmar Retorno</button><button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'faltou_saida')" class="btn btn-dark" style="flex:1;"><i class="ph ph-x-circle"></i> Faltou</button></div></div>`;
             }
 
-            if ((auth.Status === "Concluído" || auth.Status === "Saída Confirmada" || auth.Status.includes("Faltou") || auth.Status === "Não Retornou") && (acaoRealBR.includes(dataHoje) || retRealBR.includes(dataHoje) || pAcaoBR.includes(dataHoje))) {
+            if (auth.Status && (auth.Status === "Concluído" || auth.Status === "Saída Confirmada" || auth.Status.includes("Faltou") || auth.Status === "Não Retornou") && (acaoRealBR.includes(dataHoje) || retRealBR.includes(dataHoje) || pAcaoBR.includes(dataHoje))) {
                 let classeCor = ""; let icone = "";
                 if(auth.Status.includes("Faltou") || auth.Status === "Não Retornou") { classeCor = "hist-falta"; icone = auth.Status; }
                 else if (auth.Direcao === 'Visita' && auth.Status === "Concluído") { classeCor = "hist-visita"; icone = "Visita Concluída"; }
@@ -775,7 +776,7 @@ function carregarNotificacoesHoje(dados) {
                 const dataEvento = isFormRH || isVisita ? formatarISOparaBR(item.Previsao_Saida).split(' ')[0] : '';
                 
                 let obsTag = (!isFormRH && item.Observacao) ? `<div style="font-size:0.75rem; color:var(--text-light); margin-top:4px; padding:4px 8px; background: rgba(0,0,0,0.03); border-radius:4px; border-left: 2px solid var(--${cor});"><i class="ph ph-chat-text"></i> <i>${item.Observacao}</i></div>` : '';
-                if(isVisita) obsTag = ''; // Pra visita fica na Lider/Obs
+                if(isVisita) obsTag = ''; 
                 
                 const badgeData = (isFormRH || isVisita) ? `<span style="float:right; font-size:0.7rem; background:var(--bg); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">${dataEvento}</span>` : '';
 
@@ -957,7 +958,7 @@ function renderizarTabelaGeralRH(dados) {
             <td>${d.Matricula}</td>
             <td>${d.Nome}</td>
             <td>${d.Motivo}</td>
-            <td>${d.Lider}</td>
+            <td>${isVisita ? d.Lider.split(' | ')[0] : d.Lider}</td>
             <td>${d.Observacao || '-'}</td>
             <td>${statusExibicao}</td>
             <td>${libExibicao}</td>
