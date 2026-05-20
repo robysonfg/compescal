@@ -10,6 +10,8 @@
   --text-light: #64748B;
   --border: #E2E8F0;
   --success: #10B981;
+  --visita: #8B5CF6; /* Roxo para visitas */
+  --visita-local: #0EA5E9; /* Ciano para visitas no local */
   --radius: 8px;
 
   /* PALETA DE DEGRADÊS MODERNOS */
@@ -19,6 +21,7 @@
   --grad-success: linear-gradient(135deg, #11998E 0%, #38EF7D 100%);
   --grad-dark: linear-gradient(135deg, #64748B 0%, #334155 100%);
   --grad-corp: linear-gradient(135deg, #0F2C59 0%, #1A4685 100%);
+  --grad-purple: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%); /* Agendamento */
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
@@ -35,6 +38,7 @@ body { background-color: var(--bg); color: var(--text); -webkit-font-smoothing: 
 .btn-danger { background-color: var(--accent); color: white; }
 .btn-success { background-color: var(--success); color: white; }
 .btn-dark { background-color: var(--dark); color: white; }
+.btn-visita { background: var(--grad-purple); color: white; }
 .btn-icon { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
 
 /* MENU MODERNO DO LÍDER */
@@ -54,7 +58,7 @@ body { background-color: var(--bg); color: var(--text); -webkit-font-smoothing: 
 .btn-menu.falta   { background: var(--grad-dark); }
 .btn-menu.folga   { background: var(--grad-success); }
 .btn-menu.ci      { background: var(--grad-warning); }
-.btn-menu.hist    { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%); grid-column: 1 / -1; flex-direction: row; font-size: 1.1rem; }
+.btn-menu.hist    { background: var(--grad-corp); grid-column: 1 / -1; flex-direction: row; font-size: 1.1rem; }
 .btn-menu.hist i  { margin-bottom: 0; }
 
 /* INPUTS E FORMULÁRIOS */
@@ -101,6 +105,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 .hist-entrada { border-left-color: var(--primary); }
 .hist-retorno { border-left-color: var(--warning); }
 .hist-falta { border-left-color: var(--dark); opacity: 0.8; }
+.hist-visita { border-left-color: var(--visita); }
 
 .ranking-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
 .ranking-list li { display: flex; justify-content: space-between; background: #F8FAFC; padding: 0.8rem; border-radius: var(--radius); border: 1px solid var(--border); font-weight: 600; color: var(--primary);}
@@ -114,6 +119,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 .kpi-item.falta::before { background: var(--grad-dark); } .kpi-item.falta h3 { color: var(--dark); }
 .kpi-item.folga::before { background: var(--grad-success); } .kpi-item.folga h3 { color: var(--success); }
 .kpi-item.ci::before { background: var(--grad-warning); } .kpi-item.ci h3 { color: var(--warning); }
+.kpi-item.visita::before { background: var(--grad-purple); } .kpi-item.visita h3 { color: var(--visita); }
 .kpi-item span { font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; display: block; margin-bottom: 0.5rem; letter-spacing: 0.5px;}
 .kpi-item h3 { font-size: 2rem; }
 
@@ -134,7 +140,6 @@ th { background-color: #F8FAFC; color: var(--text-light); font-weight: 600; }
 .modal-actions { display: flex; gap: 10px; justify-content: center; }
 .modal-actions button { flex: 1; }
 
-/* ESTILIZAÇÃO ESPECÍFICA DO CARTÃO POSTAL (SELEÇÃO DE PERFIL) */
 #modal-selecao-perfil .modal-box { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3); max-width: 850px; width: 95%; padding: 3rem 2rem; text-align: center; }
 #modal-selecao-perfil h3 { justify-content: center; font-size: 1.8rem; margin-bottom: 1rem; }
 #botoes-perfis { display: flex; flex-direction: row; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 2rem; }
