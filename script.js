@@ -1,7 +1,7 @@
 // ==========================================
 // CONFIGURAÇÃO DA API E VARIÁVEIS GLOBAIS
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbxG_omgsK5GBuXGAxaEGpyhN1uIV1dqRshpArZO1gJbj3Tpykpjby_0Si8o5otD2NupCA/exec"; // <--- ATENÇÃO: COLE SUA NOVA URL AQUI
+const API_URL = "https://script.google.com/macros/s/AKfycbygVyAKP3A4iIUJn3H7HfvYIjcOAokgY5Zbbkoon3VbbAmunWkRPLnuqiaG89OUr3GRRw/exec"; // <--- ATENÇÃO: COLE SUA NOVA URL AQUI
 let ultimoTotalPortaria = 0; 
 let intervaloPortaria = null; 
 let usuarioLogado = null;
@@ -94,7 +94,7 @@ function normalizarDadosBanco(dadosBrutos) {
             Vai_Retornar: d.Vai_Retornar || vals[10] || '',
             Previsao_Retorno: d.Previsao_Retorno || vals[11] || '',
             Data_Hora_Retorno: d.Data_Hora_Retorno || vals[12] || '',
-            Direcao: String(d.Direcao || d['Direção'] || d['Coluna_Vazia_13'] || vals[13] || '').trim(),
+            Direcao: String(d.Direcao || d['Direção'] || vals[13] || '').trim(),
             Data: d.Data || vals[1] || '' 
         };
     });
@@ -219,7 +219,6 @@ document.getElementById('btn-logout').addEventListener('click', () => {
 async function iniciarAgendamento() {
     document.getElementById('tela-agendamento').classList.remove('hidden');
     document.getElementById('data-visita').value = dataHoraInputLocal();
-    
     try {
         const resLanc = await fetch(`${API_URL}?tabela=Lancamentos`);
         const jsonLanc = await resLanc.json();
@@ -231,37 +230,22 @@ window.buscarVisitanteMemoria = function() {
     const cpfRaw = document.getElementById('cpf-visitante').value.trim();
     if(!cpfRaw) return showToast("Digite um CPF para buscar.", "info");
 
-    const aviso = document.getElementById('aviso-cpf');
-    aviso.classList.remove('hidden');
-
+    const aviso = document.getElementById('aviso-cpf'); aviso.classList.remove('hidden');
     const visitante = dadosGeraisRH.find(d => String(d.Matricula).trim() === cpfRaw && d.Direcao === 'Visita');
 
     if(visitante) {
         document.getElementById('nome-visitante').value = visitante.Nome || '';
-        
         let empresa = "", tel = "";
-        if (visitante.Lider) {
-            const parts = visitante.Lider.split(" | Tel: ");
-            empresa = parts[0] || "";
-            tel = parts[1] || "";
-        }
-        document.getElementById('empresa-visitante').value = empresa;
-        document.getElementById('tel-visitante').value = tel;
+        if (visitante.Lider) { const parts = visitante.Lider.split(" | Tel: "); empresa = parts[0] || ""; tel = parts[1] || ""; }
+        document.getElementById('empresa-visitante').value = empresa; document.getElementById('tel-visitante').value = tel;
 
         let veiculo = "", placa = "";
-        if (visitante.Observacao) {
-            const parts = visitante.Observacao.split(" | Placa: ");
-            veiculo = parts[0] || "";
-            placa = parts[1] || "";
-        }
-        document.getElementById('veiculo-visitante').value = veiculo;
-        document.getElementById('placa-visitante').value = placa;
+        if (visitante.Observacao) { const parts = visitante.Observacao.split(" | Placa: "); veiculo = parts[0] || ""; placa = parts[1] || ""; }
+        document.getElementById('veiculo-visitante').value = veiculo; document.getElementById('placa-visitante').value = placa;
 
-        aviso.textContent = "Cadastro encontrado e preenchido!";
-        aviso.classList.replace('text-danger', 'text-success');
+        aviso.textContent = "Cadastro encontrado e preenchido!"; aviso.classList.replace('text-danger', 'text-success');
     } else {
-        aviso.textContent = "Visitante novo. Preencha os dados manualmente.";
-        aviso.classList.replace('text-success', 'text-danger');
+        aviso.textContent = "Visitante novo. Preencha os dados manualmente."; aviso.classList.replace('text-success', 'text-danger');
     }
     setTimeout(() => aviso.classList.add('hidden'), 4000);
 }
@@ -271,9 +255,7 @@ document.getElementById('form-agendamento').addEventListener('submit', async (e)
     const btn = document.getElementById('btn-submit-visita');
     const txtOrg = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Agendando...'; btn.disabled = true;
 
-    // HACK CIRÚRGICO: Apóstrofo salva como texto puro no Sheets e protege o Zero
     const cpfFormatado = "'" + document.getElementById('cpf-visitante').value.trim(); 
-    
     const nome = document.getElementById('nome-visitante').value;
     const tel = document.getElementById('tel-visitante').value;
     const empresa = document.getElementById('empresa-visitante').value;
@@ -286,27 +268,17 @@ document.getElementById('form-agendamento').addEventListener('submit', async (e)
     const obsFormatada = (veiculo || placa) ? `${veiculo} | Placa: ${placa}` : '';
 
     const dados = [
-        formatarISOparaBR(dataHoraInputLocal()), 
-        cpfFormatado,                                     
-        nome,                                    
-        motivo,                                  
-        liderFormatado,                          
-        obsFormatada,                            
-        formatarISOparaBR(dataVisita),           
-        'Não', '', 'Visita',                     
-        'Aguardando Visita'                      
+        formatarISOparaBR(dataHoraInputLocal()), cpfFormatado, nome, motivo, liderFormatado, obsFormatada, formatarISOparaBR(dataVisita),           
+        'Não', '', 'Visita', 'Aguardando Visita'                      
     ];
 
     try {
         const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ acao: 'nova_autorizacao', dados: dados }) });
         const data = await res.json();
         if(data.status === 'sucesso') { 
-            showToast("Visita agendada com sucesso!", "sucesso"); 
-            e.target.reset();
-            document.getElementById('data-visita').value = dataHoraInputLocal();
+            showToast("Visita agendada com sucesso!", "sucesso"); e.target.reset(); document.getElementById('data-visita').value = dataHoraInputLocal();
         } else { showToast(data.mensagem, "erro"); }
     } catch(err) { showToast("Falha na conexão.", "erro"); }
-    
     btn.innerHTML = txtOrg; btn.disabled = false;
 });
 
@@ -330,10 +302,12 @@ async function iniciarLider() {
     if(document.getElementById('data-falta')) document.getElementById('data-falta').value = hoje;
     if(document.getElementById('data-ci')) document.getElementById('data-ci').value = hoje;
 
+    // TRAVA CRÍTICA NA FOLGA: Só permite dia de hoje pra frente
     if (!liderInicializado) {
         if(document.getElementById('data-folga')) {
             flatpickr("#data-folga", {
-                mode: "multiple", dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", locale: "pt", defaultDate: [hoje]
+                mode: "multiple", dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", locale: "pt", defaultDate: [hoje],
+                minDate: "today" // Impede datas retroativas
             });
         }
         const selMotivo = document.getElementById('motivo-saida');
@@ -396,7 +370,7 @@ window.filtrarHistoricoLider = async function() {
     const dtFim = document.getElementById('filtro-hist-fim').value;
     const mat = document.getElementById('filtro-hist-mat').value;
 
-    let dadosLider = dadosGeraisRH.filter(d => d.Lider === usuarioLogado.nome);
+    let dadosLider = dadosGeraisRH.filter(d => d.Lider === usuarioLogado.nome && d.Status !== 'Excluído');
 
     if (dtIn || dtFim) {
         dadosLider = dadosLider.filter(d => {
@@ -444,6 +418,7 @@ window.filtrarHistoricoLider = async function() {
 function verificaDuplicidade(matricula, data, tipoLancamento) {
     const dataVerificarISO = extrairDataISO(data); 
     const jaExiste = dadosGeraisRH.some(registro => {
+        if(registro.Status === 'Excluído') return false; // Se foi excluído, pode lançar de novo
         const dataRegistroISO = extrairDataISO(registro.Previsao_Saida || registro.Data_Hora_Pedido);
         return (String(registro.Matricula) === String(matricula) && dataRegistroISO === dataVerificarISO && registro.Motivo === tipoLancamento);
     });
@@ -453,8 +428,10 @@ function verificaDuplicidade(matricula, data, tipoLancamento) {
 function configurarFormularioLider(idForm, tipoLancamento) {
     const form = document.getElementById(idForm);
     if (!form) return;
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        
         const sufixo = idForm.split('-')[1]; 
         const matRaw = document.getElementById(`mat-${sufixo}`).value;
         const dataInputRaw = document.getElementById(`data-${sufixo}`).value;
@@ -468,18 +445,30 @@ function configurarFormularioLider(idForm, tipoLancamento) {
 
         const btn = form.querySelector('button[type="submit"]');
         const txtOrg = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; btn.disabled = true;
-        const observacao = document.getElementById(sufixo === 'falta' ? 'obs-falta' : (sufixo === 'folga' ? 'tipo-folga' : 'assunto-ci')).value;
+
+        // ESTRUTURAÇÃO CORRETA DA OBSERVAÇÃO
+        let observacao = '';
+        if (sufixo === 'falta') observacao = document.getElementById('obs-falta').value;
+        else if (sufixo === 'ci') observacao = document.getElementById('assunto-ci').value;
+        else if (sufixo === 'folga') {
+            const tFolga = document.getElementById('tipo-folga').value;
+            const oFolga = document.getElementById('obs-folga-extra').value;
+            observacao = oFolga ? `${tFolga} | Justificativa/Retroativo: ${oFolga}` : tFolga;
+        }
         
         let salvos = 0; let erros = 0;
         for (let i = 0; i < matriculasArray.length; i++) {
-            const matAtual = "'" + matriculasArray[i]; // Hack do zero à esquerda
+            const matAtual = "'" + matriculasArray[i]; 
             const nomeAtual = nomesArray[i] || 'Nome não localizado';
+
             for (const dataAtual of datasArray) {
                 if (verificaDuplicidade(matriculasArray[i], dataAtual, tipoLancamento)) {
                     showToast(`Atenção: Já existe ${tipoLancamento} para a data ${formatarDataSimplesBR(dataAtual)}!`, 'erro');
                     erros++; continue; 
                 }
+                
                 const dados = [ formatarISOparaBR(dataHoraInputLocal()), matAtual, nomeAtual, tipoLancamento, usuarioLogado.nome, observacao, formatarDataSimplesBR(dataAtual), 'Não', '', 'Lançamento RH', '-' ];
+                
                 try {
                     const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ acao: 'nova_autorizacao', dados: dados }) });
                     const dataRes = await res.json();
@@ -487,6 +476,7 @@ function configurarFormularioLider(idForm, tipoLancamento) {
                 } catch(err) { showToast("Falha na conexão.", "erro"); erros++; }
             }
         }
+
         if (salvos > 0) {
             showToast(`${salvos} ${tipoLancamento}(s) salvo(s) com sucesso!`, 'sucesso'); 
             form.reset();
@@ -495,6 +485,7 @@ function configurarFormularioLider(idForm, tipoLancamento) {
             else document.getElementById(`data-${sufixo}`).value = hoje;
             window.voltarParaMenu(); iniciarLider(); 
         }
+
         btn.innerHTML = txtOrg; btn.disabled = false;
     });
 }
@@ -502,6 +493,9 @@ configurarFormularioLider('form-falta', 'Falta');
 configurarFormularioLider('form-folga', 'Folga');
 configurarFormularioLider('form-ci', 'CI');
 
+// ------------------------------------------
+// FORMULÁRIO ORIGINAL DE ENTRADA E SAÍDA
+// ------------------------------------------
 window.iniciarFormulario = function(tipo) {
     direcaoAtual = tipo;
     window.resetarTelasLider();
@@ -557,7 +551,7 @@ document.getElementById('form-autorizacao').addEventListener('submit', async (e)
     const btn = e.target.querySelector('button[type="submit"]');
     const txtOrg = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Autorizando...'; btn.disabled = true;
     
-    const matFormatada = "'" + document.getElementById('mat-colaborador').value.trim(); // Hack do Zero
+    const matFormatada = "'" + document.getElementById('mat-colaborador').value.trim(); 
 
     const dados = [
         formatarISOparaBR(dataHoraInputLocal()), matFormatada, nome, document.getElementById('motivo-saida').value,
@@ -629,7 +623,7 @@ async function carregarPortaria(silencioso = false) {
         const autorizacoes = normalizarDadosBanco(json.dados || []);
 
         const pendentesPortaria = autorizacoes.filter(a => {
-            if (a.Direcao === 'Lançamento RH' || ['Falta', 'Folga', 'CI'].includes(a.Motivo)) return false;
+            if (a.Direcao === 'Lançamento RH' || ['Falta', 'Folga', 'CI'].includes(a.Motivo) || a.Status === 'Excluído') return false;
             return a.Status && (a.Status.includes("Aguardando") || a.Status === "Visita no Local");
         });
         const totalAtual = pendentesPortaria.length; 
@@ -640,7 +634,7 @@ async function carregarPortaria(silencioso = false) {
         let hS='', hE='', hR='', hHist='', hVAg='', hVL='';
 
         autorizacoes.reverse().forEach(auth => {
-            if (auth.Direcao === 'Lançamento RH' || ['Falta', 'Folga', 'CI'].includes(auth.Motivo)) return; 
+            if (auth.Direcao === 'Lançamento RH' || ['Falta', 'Folga', 'CI'].includes(auth.Motivo) || auth.Status === 'Excluído') return; 
 
             const ehEntrada = auth.Direcao === 'Entrada';
             const vaiRetornarTag = (!ehEntrada && auth.Vai_Retornar === 'Sim') ? `<span class="tag-sim">Requer Retorno</span>` : ((!ehEntrada && auth.Direcao !== 'Visita') ? `<span class="tag-nao">Sem Retorno</span>` : '');
@@ -656,7 +650,6 @@ async function carregarPortaria(silencioso = false) {
 
             const detalhesComuns = auth.Direcao === 'Visita' ? detalhesVisita : `<div class="details"><div><strong>Matrícula:</strong> ${auth.Matricula}</div><div><strong>Motivo:</strong> ${auth.Motivo}</div><div><strong>Líder:</strong> ${auth.Lider}</div>${auth.Observacao ? `<div><strong>Obs:</strong> ${auth.Observacao}</div>` : ''}</div>`;
 
-            // CORREÇÃO: Visitas 100% blindadas
             if (auth.Direcao === 'Visita') {
                 if (auth.Status && auth.Status.includes("Aguardando")) {
                     hVAg += `<div class="auth-card" id="card-${auth.ID}" style="border-left-color: var(--visita);"><div style="display:flex; justify-content:space-between;"><div class="name">${auth.Nome}</div> <span class="tag-sim" style="background:#F3E8FF; color:var(--visita);">Visitante</span></div>${detalhesComuns}<div class="details"><strong>Prev. Chegada:</strong> <span style="color:var(--visita); font-weight:bold;">${pAcaoBR}</span></div><button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'entrada_visita')" class="btn btn-visita mt-1"><i class="ph ph-sign-in"></i> Confirmar Entrada</button></div>`;
@@ -717,7 +710,7 @@ window.acionarPortaria = async function(id, nome, acao) {
 }
 
 // ==========================================
-// 4. TELA RH (Dashboards e Filtros Avançados)
+// 4. TELA RH E NOVO BOTÃO DE EXCLUIR FOLGA
 // ==========================================
 window.abrirRelatoriosRH = function() {
     document.getElementById('tela-rh').classList.add('hidden');
@@ -754,7 +747,8 @@ function carregarNotificacoesHoje(dados) {
     const hojeISO = new Date().toISOString().split('T')[0]; 
     let saidas = [], entradas = [], faltas = [], folgas = [], cis = [], visitas = [];
 
-    dados.forEach(d => {
+    // Ignora os excluídos lógicos no painel
+    dados.filter(d => d.Status !== 'Excluído').forEach(d => {
         const d1 = extrairDataISO(d.Data_Hora_Pedido); const d2 = extrairDataISO(d.Previsao_Saida);
         const d3 = extrairDataISO(d.Data_Hora_Saida); const d4 = extrairDataISO(d.Data); 
         
@@ -798,7 +792,8 @@ function gerarKPIsERanking(dados) {
     let kpi = { hoje: { saida: 0, entrada: 0, falta: 0, folga: 0, ci: 0, visita: 0 }, mes: { saida: 0, entrada: 0, falta: 0, folga: 0, ci: 0, visita: 0 } };
     let rankingSaidas = {}; let rankingEntradas = {};
 
-    dados.forEach(d => {
+    // Ignora excluídos nos KPIs e Rankings
+    dados.filter(d => d.Status !== 'Excluído').forEach(d => {
         const dataPedidoISO = extrairDataISO(d.Data_Hora_Pedido || d.Data); const isMes = dataPedidoISO.startsWith(mesAtualISO);
         const d1 = extrairDataISO(d.Data_Hora_Pedido); const d2 = extrairDataISO(d.Previsao_Saida); const d3 = extrairDataISO(d.Data_Hora_Saida); const d4 = extrairDataISO(d.Data);
         const isHoje = (d1 === hojeISO || d2 === hojeISO || d3 === hojeISO || d4 === hojeISO);
@@ -869,7 +864,27 @@ window.aplicarFiltrosRH = function() {
 
     document.getElementById('card-dados-relatorio').classList.remove('hidden');
 
+    // Módulo de Auditoria: Vendo Folgas Excluídas
+    if (tipo === 'Folgas_Excluidas') {
+        let dadosExcluidos = dadosGeraisRH.filter(d => d.Status === 'Excluído' && d.Motivo === 'Folga');
+        if (dtIn || dtFim) {
+            dadosExcluidos = dadosExcluidos.filter(d => {
+                const dataBaseISO = extrairDataISO(d.Previsao_Saida);
+                let ok = true;
+                if (dtIn && dataBaseISO < dtIn) ok = false;
+                if (dtFim && dataBaseISO > dtFim) ok = false;
+                return ok;
+            });
+        }
+        renderizarTabelaGeralRH(dadosExcluidos);
+        btn.innerHTML = txtOrg; btn.disabled = false;
+        showToast(`${dadosExcluidos.length} folgas excluídas encontradas.`, 'info');
+        return;
+    }
+
+    // Todos os outros relatórios ignoram dados Excluídos
     let dadosFiltrados = dadosGeraisRH.filter(d => {
+        if (d.Status === 'Excluído') return false; 
         let ok = true;
         if (dtIn || dtFim) {
             const isFormRH = ['Falta', 'Folga', 'CI'].includes(d.Motivo) || d.Direcao === 'Visita';
@@ -902,6 +917,32 @@ window.aplicarFiltrosRH = function() {
     showToast(`${dadosFiltrados.length} registros encontrados.`, 'info');
 }
 
+// O NOVO COMANDO: EXCLUIR FOLGA
+window.excluirRegistro = async function(id, btn) {
+    if(!confirm("Tem certeza que deseja excluir esta folga do relatório?")) return;
+    
+    const txtOrg = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>'; btn.disabled = true;
+    
+    try {
+        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ acao: 'excluir_registro', id: id }) });
+        const textoResposta = await res.text(); let data;
+        try { data = JSON.parse(textoResposta); } catch(e) {
+            showToast("Servidor desatualizado! Faça a 'Nova Implantação'.", "erro"); btn.innerHTML = txtOrg; btn.disabled = false; return;
+        }
+        
+        if(data.status === 'sucesso') {
+            showToast("Folga excluída do relatório!", "sucesso");
+            const item = dadosGeraisRH.find(x => String(x.ID) === String(id)); 
+            if(item) item.Status = 'Excluído';
+            
+            // Remove a linha da tabela na hora
+            const tr = btn.closest('tr');
+            if(tr) tr.remove();
+        } else { showToast(data.mensagem, "erro"); btn.innerHTML = txtOrg; btn.disabled = false; }
+    } catch(e) { showToast("Erro de internet.", "erro"); btn.innerHTML = txtOrg; btn.disabled = false; }
+}
+
 window.marcarComoLancado = async function(id, btn) {
     const txtOrg = btn.innerHTML;
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>'; btn.disabled = true;
@@ -916,7 +957,12 @@ window.marcarComoLancado = async function(id, btn) {
         if(data.status === 'sucesso') {
             showToast("Marcado como lançado no Fortes!", "sucesso");
             const parent = btn.parentElement;
+            
+            // Deixa o botão de lixeira caso a pessoa tenha clicado Fortes, mas mude de ideia depois.
+            const btnLixo = parent.querySelector('.btn-danger');
             parent.innerHTML = `<span class="status-badge ok" style="background:var(--success); color:white;"><i class="ph ph-check-circle"></i> Fortes OK</span>`;
+            if(btnLixo) parent.appendChild(btnLixo);
+            
             const item = dadosGeraisRH.find(x => String(x.ID) === String(id)); if(item) item.Status = 'Lançado no Fortes';
         } else { showToast(data.mensagem, "erro"); btn.innerHTML = txtOrg; btn.disabled = false; }
     } catch(e) { showToast("Erro de internet ou URL bloqueada.", "erro"); btn.innerHTML = txtOrg; btn.disabled = false; }
@@ -931,7 +977,7 @@ function renderizarTabelaGeralRH(dados) {
     
     dados.reverse().forEach(d => {
         let bClass = 'pend';
-        if(d.Status === 'Concluído' || d.Status === 'Saída Confirmada') bClass = 'ok';
+        if(d.Status === 'Concluído' || d.Status === 'Saída Confirmada' || d.Status === 'Excluído') bClass = 'ok';
         if(d.Status === 'Aguardando Retorno' || d.Status === 'Visita no Local') bClass = 'ret';
         if(d.Status && (d.Status.includes('Faltou') || d.Status === 'Não Retornou')) bClass = 'falta';
 
@@ -941,11 +987,18 @@ function renderizarTabelaGeralRH(dados) {
         const dataEvento = isFormRH || isVisita ? formatarISOparaBR(d.Previsao_Saida).split(' ')[0] : '-';
         
         let statusExibicao = '';
-        if (isFormRH) {
+        if (d.Status === 'Excluído') {
+            statusExibicao = `<span class="status-badge" style="background:var(--accent); color:white;"><i class="ph ph-trash"></i> Excluída</span>`;
+        } 
+        else if (isFormRH) {
             if (d.Status === 'Lançado no Fortes') {
                 statusExibicao = `<span class="status-badge ok" style="background:var(--success); color:white;"><i class="ph ph-check-circle"></i> Fortes OK</span>`;
             } else {
                 statusExibicao = `<button class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; border-radius:4px;" onclick="marcarComoLancado('${d.ID}', this)"><i class="ph ph-upload-simple"></i> Lançar Fortes</button>`;
+            }
+            // ADICIONA LIXEIRA APENAS SE FOR FOLGA
+            if (d.Motivo === 'Folga') {
+                statusExibicao += ` <button class="btn btn-danger" style="padding: 0.3rem 0.5rem; font-size: 0.75rem; border-radius:4px; margin-left: 5px;" onclick="excluirRegistro('${d.ID}', this)" title="Excluir Folga"><i class="ph ph-trash"></i></button>`;
             }
         } else {
             statusExibicao = (d.Status === '-' || !d.Status) ? '-' : `<span class="status-badge ${bClass}">${d.Status}</span>`;
