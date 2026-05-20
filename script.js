@@ -1,7 +1,7 @@
 // ==========================================
 // CONFIGURAÇÃO DA API E VARIÁVEIS GLOBAIS
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbzoXv41yRgJEkYIAPRzDvRPp5aRh6PTj5TzbfaOTrKzT_yUwHn3xPtMB4F5TSlZS2wG9w/exec"; // <--- ATENÇÃO: COLE SUA NOVA URL AQUI
+const API_URL = "https://script.google.com/macros/s/AKfycbxG_omgsK5GBuXGAxaEGpyhN1uIV1dqRshpArZO1gJbj3Tpykpjby_0Si8o5otD2NupCA/exec"; // <--- ATENÇÃO: COLE SUA NOVA URL AQUI
 let ultimoTotalPortaria = 0; 
 let intervaloPortaria = null; 
 let usuarioLogado = null;
@@ -94,7 +94,7 @@ function normalizarDadosBanco(dadosBrutos) {
             Vai_Retornar: d.Vai_Retornar || vals[10] || '',
             Previsao_Retorno: d.Previsao_Retorno || vals[11] || '',
             Data_Hora_Retorno: d.Data_Hora_Retorno || vals[12] || '',
-            Direcao: String(d.Direcao || d['Direção'] || vals[13] || '').trim(),
+            Direcao: String(d.Direcao || d['Direção'] || d['Coluna_Vazia_13'] || vals[13] || '').trim(),
             Data: d.Data || vals[1] || '' 
         };
     });
@@ -214,7 +214,7 @@ document.getElementById('btn-logout').addEventListener('click', () => {
 });
 
 // ==========================================
-// MÓDULO AGENDAMENTO DE VISITAS (NOVO)
+// MÓDULO AGENDAMENTO DE VISITAS
 // ==========================================
 async function iniciarAgendamento() {
     document.getElementById('tela-agendamento').classList.remove('hidden');
@@ -271,8 +271,8 @@ document.getElementById('form-agendamento').addEventListener('submit', async (e)
     const btn = document.getElementById('btn-submit-visita');
     const txtOrg = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Agendando...'; btn.disabled = true;
 
-    // HACK INVISÍVEL: O espaço no final força o Google Sheets a aceitar CPF com zero sem destruir o zero
-    const cpf = document.getElementById('cpf-visitante').value.trim() + " "; 
+    // HACK CIRÚRGICO: Apóstrofo salva como texto puro no Sheets e protege o Zero
+    const cpfFormatado = "'" + document.getElementById('cpf-visitante').value.trim(); 
     
     const nome = document.getElementById('nome-visitante').value;
     const tel = document.getElementById('tel-visitante').value;
@@ -287,7 +287,7 @@ document.getElementById('form-agendamento').addEventListener('submit', async (e)
 
     const dados = [
         formatarISOparaBR(dataHoraInputLocal()), 
-        cpf,                                     
+        cpfFormatado,                                     
         nome,                                    
         motivo,                                  
         liderFormatado,                          
@@ -472,11 +472,11 @@ function configurarFormularioLider(idForm, tipoLancamento) {
         
         let salvos = 0; let erros = 0;
         for (let i = 0; i < matriculasArray.length; i++) {
-            const matAtual = matriculasArray[i];
+            const matAtual = "'" + matriculasArray[i]; // Hack do zero à esquerda
             const nomeAtual = nomesArray[i] || 'Nome não localizado';
             for (const dataAtual of datasArray) {
-                if (verificaDuplicidade(matAtual, dataAtual, tipoLancamento)) {
-                    showToast(`Atenção: Já existe ${tipoLancamento} para ${matAtual} na data ${formatarDataSimplesBR(dataAtual)}!`, 'erro');
+                if (verificaDuplicidade(matriculasArray[i], dataAtual, tipoLancamento)) {
+                    showToast(`Atenção: Já existe ${tipoLancamento} para a data ${formatarDataSimplesBR(dataAtual)}!`, 'erro');
                     erros++; continue; 
                 }
                 const dados = [ formatarISOparaBR(dataHoraInputLocal()), matAtual, nomeAtual, tipoLancamento, usuarioLogado.nome, observacao, formatarDataSimplesBR(dataAtual), 'Não', '', 'Lançamento RH', '-' ];
@@ -556,8 +556,11 @@ document.getElementById('form-autorizacao').addEventListener('submit', async (e)
     if(!nome || nome === 'Buscando...') return showToast("Aguarde ou faça a busca.", "erro");
     const btn = e.target.querySelector('button[type="submit"]');
     const txtOrg = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Autorizando...'; btn.disabled = true;
+    
+    const matFormatada = "'" + document.getElementById('mat-colaborador').value.trim(); // Hack do Zero
+
     const dados = [
-        formatarISOparaBR(dataHoraInputLocal()), document.getElementById('mat-colaborador').value, nome, document.getElementById('motivo-saida').value,
+        formatarISOparaBR(dataHoraInputLocal()), matFormatada, nome, document.getElementById('motivo-saida').value,
         usuarioLogado.nome, document.getElementById('obs-saida').value, formatarISOparaBR(document.getElementById('prev-acao').value),
         document.getElementById('vai-retornar').value, formatarISOparaBR(document.getElementById('prev-retorno').value), direcaoAtual, `Aguardando Liberação de ${direcaoAtual}` 
     ];
@@ -653,7 +656,7 @@ async function carregarPortaria(silencioso = false) {
 
             const detalhesComuns = auth.Direcao === 'Visita' ? detalhesVisita : `<div class="details"><div><strong>Matrícula:</strong> ${auth.Matricula}</div><div><strong>Motivo:</strong> ${auth.Motivo}</div><div><strong>Líder:</strong> ${auth.Lider}</div>${auth.Observacao ? `<div><strong>Obs:</strong> ${auth.Observacao}</div>` : ''}</div>`;
 
-            // CORREÇÃO: Visitas independentes de possíveis falhas do servidor antigo
+            // CORREÇÃO: Visitas 100% blindadas
             if (auth.Direcao === 'Visita') {
                 if (auth.Status && auth.Status.includes("Aguardando")) {
                     hVAg += `<div class="auth-card" id="card-${auth.ID}" style="border-left-color: var(--visita);"><div style="display:flex; justify-content:space-between;"><div class="name">${auth.Nome}</div> <span class="tag-sim" style="background:#F3E8FF; color:var(--visita);">Visitante</span></div>${detalhesComuns}<div class="details"><strong>Prev. Chegada:</strong> <span style="color:var(--visita); font-weight:bold;">${pAcaoBR}</span></div><button onclick="acionarPortaria('${auth.ID}', '${auth.Nome}', 'entrada_visita')" class="btn btn-visita mt-1"><i class="ph ph-sign-in"></i> Confirmar Entrada</button></div>`;
