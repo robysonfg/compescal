@@ -31,7 +31,7 @@
                 <div class="input-group"><label>Usuário</label><input type="text" id="login-user" required></div>
                 <div class="input-group"><label>Senha</label><input type="password" id="login-senha" required></div>
                 <button type="submit" class="btn btn-primary btn-block">Entrar</button>
-                <div class="version-control">Versão: v2.13.0 Enterprise UI</div>
+                <div class="version-control">Versão: v2.14.0 Enterprise UI</div>
             </form>
         </div>
     </div>
@@ -64,7 +64,7 @@
                         <div class="input-group">
                             <label>CPF do Visitante (Sem pontuação)</label>
                             <div style="display: flex; gap: 10px;">
-                                <input type="number" id="cpf-visitante" required placeholder="Digite o CPF para buscar...">
+                                <input type="text" inputmode="numeric" id="cpf-visitante" required placeholder="Digite o CPF para buscar...">
                                 <button type="button" class="btn btn-secondary" onclick="buscarVisitanteMemoria()"><i class="ph ph-magnifying-glass"></i></button>
                             </div>
                             <small id="aviso-cpf" class="text-danger hidden">Buscando no histórico...</small>
