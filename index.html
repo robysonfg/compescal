@@ -31,7 +31,7 @@
                 <div class="input-group"><label>Usuário</label><input type="text" id="login-user" required></div>
                 <div class="input-group"><label>Senha</label><input type="password" id="login-senha" required></div>
                 <button type="submit" class="btn btn-primary btn-block">Entrar</button>
-                <div class="version-control">Versão: v2.14.0 </div>
+                <div class="version-control">Versão: v2.15.0 </div>
             </form>
         </div>
     </div>
@@ -170,10 +170,12 @@
                             </div>
                         </div>
                         <div class="input-group"><label>Nome do Colaborador</label><input type="text" id="nome-folga" readonly required class="readonly"></div>
+                        
                         <div class="input-group">
-                            <label>Data da Folga (Múltiplas)</label>
+                            <label>Data da Folga (Permite Selecionar Múltiplas)</label>
                             <input type="text" id="data-folga" required placeholder="Selecione as datas" style="background-color: white;">
                         </div>
+                        
                         <div class="input-group">
                             <label>Tipo de Folga</label>
                             <select id="tipo-folga" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border); border-radius: 8px;">
@@ -182,6 +184,12 @@
                                 <option value="Premiação">Premiação</option>
                             </select>
                         </div>
+
+                        <div class="input-group">
+                            <label>Justificativa / Observação (Folgas Retroativas)</label>
+                            <input type="text" id="obs-folga-extra" placeholder="Ex: Referente à folga do dia 10/04/2026">
+                        </div>
+
                         <div style="display: flex; gap: 10px; margin-top: 1rem;">
                             <button type="button" class="btn btn-secondary" style="flex:1;" onclick="voltarParaMenu()">Voltar</button>
                             <button type="submit" class="btn btn-success" style="flex:2;"><i class="ph ph-check-circle"></i> Salvar Folga</button>
@@ -200,8 +208,17 @@
                             </div>
                         </div>
                         <div class="input-group"><label>Nome do Colaborador</label><input type="text" id="nome-ci" readonly required class="readonly"></div>
-                        <div class="input-group"><label>Data da C.I.</label><input type="date" id="data-ci" required></div>
-                        <div class="input-group"><label>Assunto / Ocorrência</label><textarea id="assunto-ci" required rows="3" style="width:100%; border:1px solid var(--border); border-radius:8px; padding:10px;"></textarea></div>
+                        
+                        <div class="input-group">
+                            <label>Data de Emissão (Bloqueada)</label>
+                            <input type="date" id="data-ci" required readonly class="readonly">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label>Assunto / Ocorrência</label>
+                            <textarea id="assunto-ci" required rows="4" style="width:100%; border:1px solid var(--border); border-radius:8px; padding:10px;" placeholder="Data da Ocorrência: DD/MM/AAAA&#10;Relato / Justificativa: "></textarea>
+                        </div>
+
                         <div style="display: flex; gap: 10px; margin-top: 1rem;">
                             <button type="button" class="btn btn-secondary" style="flex:1;" onclick="voltarParaMenu()">Voltar</button>
                             <button type="submit" class="btn btn-success" style="flex:2;"><i class="ph ph-paper-plane-tilt"></i> Enviar C.I.</button>
@@ -293,25 +310,6 @@
                     </div>
                 </div>
 
-                <div class="card mt-1">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h3><i class="ph ph-sign-out"></i> Ranking do Mês (Mais Saídas)</h3>
-                        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('lista-ranking-saida-container', this)"><i class="ph ph-minus"></i></button>
-                    </div>
-                    <div id="lista-ranking-saida-container">
-                        <ul id="lista-ranking-saida" class="ranking-list"></ul>
-                    </div>
-                </div>
-
-                <div class="card mt-1">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h3><i class="ph ph-sign-in"></i> Ranking do Mês (Mais Entradas)</h3>
-                        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; border-radius: 6px;" onclick="toggleVisibilidade('lista-ranking-entrada-container', this)"><i class="ph ph-minus"></i></button>
-                    </div>
-                    <div id="lista-ranking-entrada-container">
-                        <ul id="lista-ranking-entrada" class="ranking-list"></ul>
-                    </div>
-                </div>
             </section>
 
             <section id="tela-relatorios-rh" class="view-section hidden">
@@ -340,6 +338,7 @@
                                     <option value="faltou_saida">Faltou - Liberação de Saída</option>
                                     <option value="ranking_saidas">Ranking Mais Saídas</option>
                                     <option value="ranking_entradas">Ranking Mais Entradas</option>
+                                    <option value="Folgas_Excluidas">Folgas Excluídas (Auditoria)</option>
                                 </select>
                             </div>
                             <div class="input-group hidden" id="box-filtro-lider" style="grid-column: 1 / -1;"><label>Líder:</label><select id="filtro-lider-select"></select></div>
