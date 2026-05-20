@@ -31,7 +31,7 @@
                 <div class="input-group"><label>Usuário</label><input type="text" id="login-user" required></div>
                 <div class="input-group"><label>Senha</label><input type="password" id="login-senha" required></div>
                 <button type="submit" class="btn btn-primary btn-block">Entrar</button>
-                <div class="version-control">Versão: v2.12.0</div>
+                <div class="version-control">Versão: v2.13.0 Enterprise UI</div>
             </form>
         </div>
     </div>
@@ -47,6 +47,44 @@
         </header>
 
         <main class="content">
+            
+            <section id="tela-agendamento" class="view-section hidden">
+                <div class="greeting-card mb-1" style="background: var(--grad-purple);">
+                    <div class="greeting-header">
+                        <i class="ph ph-address-book greeting-icon"></i>
+                        <span class="greeting-title">Agendamento de Visitas</span>
+                    </div>
+                    <p class="greeting-subtitle">Registre visitantes e terceiros para acesso à portaria.</p>
+                </div>
+
+                <div class="card">
+                    <form id="form-agendamento">
+                        <h4 style="margin-bottom: 1rem; color: var(--visita); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;"><i class="ph ph-user-plus"></i> Dados do Visitante</h4>
+                        
+                        <div class="input-group">
+                            <label>CPF do Visitante (Sem pontuação)</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="number" id="cpf-visitante" required placeholder="Digite o CPF para buscar...">
+                                <button type="button" class="btn btn-secondary" onclick="buscarVisitanteMemoria()"><i class="ph ph-magnifying-glass"></i></button>
+                            </div>
+                            <small id="aviso-cpf" class="text-danger hidden">Buscando no histórico...</small>
+                        </div>
+
+                        <div class="filter-group">
+                            <div class="input-group" style="grid-column: 1 / -1;"><label>Nome Completo</label><input type="text" id="nome-visitante" required></div>
+                            <div class="input-group"><label>Telefone de Contato</label><input type="text" id="tel-visitante" placeholder="(XX) 99999-9999" required></div>
+                            <div class="input-group"><label>Empresa Representada</label><input type="text" id="empresa-visitante" placeholder="Ex: Correios, Particular..." required></div>
+                            <div class="input-group"><label>Motivo da Visita</label><input type="text" id="motivo-visitante" required></div>
+                            <div class="input-group"><label>Data e Hora Prevista</label><input type="datetime-local" id="data-visita" required></div>
+                            <div class="input-group"><label>Modelo do Veículo</label><input type="text" id="veiculo-visitante" placeholder="Ex: Fiat Uno (Opcional)"></div>
+                            <div class="input-group"><label>Placa do Veículo</label><input type="text" id="placa-visitante" placeholder="Ex: ABC-1234 (Opcional)"></div>
+                        </div>
+
+                        <button type="submit" class="btn btn-visita btn-block mt-1" id="btn-submit-visita"><i class="ph ph-check-circle"></i> Agendar Visita</button>
+                    </form>
+                </div>
+            </section>
+
             <section id="tela-lider" class="view-section hidden">
                 <div class="greeting-card mb-1">
                     <div class="greeting-header">
@@ -64,7 +102,7 @@
                         <button class="btn-menu falta" onclick="abrirTela('view-falta')"><i class="ph ph-user-minus"></i> Lançar Falta</button>
                         <button class="btn-menu folga" onclick="abrirTela('view-folga')"><i class="ph ph-coffee"></i> Lançar Folga</button>
                         <button class="btn-menu ci" onclick="abrirTela('view-ci')"><i class="ph ph-file-text"></i> Emitir C.I.</button>
-                        <button class="btn-menu hist" onclick="abrirHistoricoLider()"><i class="ph ph-clock-counter-clockwise"></i> Meu Histórico de Lançamentos</button>
+                        <button class="btn-menu hist" onclick="abrirHistoricoLider()"><i class="ph ph-clock-counter-clockwise"></i> Meu Histórico</button>
                     </div>
                 </div>
 
@@ -105,7 +143,7 @@
                     <h3 class="text-primary mb-1"><i class="ph ph-user-minus"></i> Registrar Falta</h3>
                     <form id="form-falta">
                         <div class="input-group">
-                            <label>Matrícula do Colaborador (Ex: 123, 456)</label>
+                            <label>Matrícula do Colaborador</label>
                             <div style="display: flex; gap: 10px;">
                                 <input type="text" id="mat-falta" required placeholder="Ex: 1234, 5678">
                                 <button type="button" class="btn btn-primary" onclick="buscarColaborador('mat-falta', 'nome-falta')"><i class="ph ph-magnifying-glass"></i></button>
@@ -125,7 +163,7 @@
                     <h3 class="text-primary mb-1"><i class="ph ph-coffee"></i> Registrar Folga</h3>
                     <form id="form-folga">
                         <div class="input-group">
-                            <label>Matrícula do Colaborador (Ex: 123, 456)</label>
+                            <label>Matrícula do Colaborador</label>
                             <div style="display: flex; gap: 10px;">
                                 <input type="text" id="mat-folga" required placeholder="Ex: 1234, 5678">
                                 <button type="button" class="btn btn-primary" onclick="buscarColaborador('mat-folga', 'nome-folga')"><i class="ph ph-magnifying-glass"></i></button>
@@ -133,7 +171,7 @@
                         </div>
                         <div class="input-group"><label>Nome do Colaborador</label><input type="text" id="nome-folga" readonly required class="readonly"></div>
                         <div class="input-group">
-                            <label>Data da Folga (Permite Selecionar Múltiplas)</label>
+                            <label>Data da Folga (Múltiplas)</label>
                             <input type="text" id="data-folga" required placeholder="Selecione as datas" style="background-color: white;">
                         </div>
                         <div class="input-group">
@@ -155,7 +193,7 @@
                     <h3 class="text-primary mb-1"><i class="ph ph-file-text"></i> Emitir C.I.</h3>
                     <form id="form-ci">
                         <div class="input-group">
-                            <label>Matrícula do Colaborador (Ex: 123, 456)</label>
+                            <label>Matrícula do Colaborador</label>
                             <div style="display: flex; gap: 10px;">
                                 <input type="text" id="mat-ci" required placeholder="Ex: 1234, 5678">
                                 <button type="button" class="btn btn-primary" onclick="buscarColaborador('mat-ci', 'nome-ci')"><i class="ph ph-magnifying-glass"></i></button>
@@ -173,7 +211,6 @@
 
                 <div id="view-historico-lider" class="card hidden">
                     <h3 class="text-primary mb-1"><i class="ph ph-list-magnifying-glass"></i> Histórico de Lançamentos</h3>
-                    
                     <div style="background: var(--bg); padding: 15px; border-radius: 8px; margin-bottom: 1rem; border: 1px solid var(--border);">
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                             <div class="input-group"><label>Período De:</label><input type="date" id="filtro-hist-inicio"></div>
@@ -185,12 +222,9 @@
                         </div>
                         <button class="btn btn-primary btn-block mt-1" onclick="filtrarHistoricoLider()"><i class="ph ph-funnel"></i> Buscar Lançamentos</button>
                     </div>
-
                     <div id="painel-historico-lider" style="display: flex; flex-direction: column; gap: 10px;"></div>
-
                     <button type="button" class="btn btn-secondary btn-block mt-1" onclick="voltarParaMenu()">Voltar ao Menu Principal</button>
                 </div>
-
             </section>
 
             <section id="tela-portaria" class="view-section hidden">
@@ -200,6 +234,9 @@
                 <div class="card" style="border-top: none;"><h3 class="text-primary" style="border-bottom: 2px solid var(--primary); padding-bottom: 10px;"><i class="ph ph-sign-in"></i> Aguardando Liberação de Entrada</h3><div id="lista-portaria-entrada" class="list-container"></div></div>
                 <div class="card" style="border-top: none;"><h3 style="color: var(--warning); border-bottom: 2px solid var(--warning); padding-bottom: 10px;"><i class="ph ph-clock-counter-clockwise"></i> Aguardando Retorno</h3><div id="lista-portaria-retorno" class="list-container"></div></div>
                 
+                <div class="card" style="border-top: none;"><h3 style="color: var(--visita); border-bottom: 2px solid var(--visita); padding-bottom: 10px;"><i class="ph ph-identification-card"></i> Aguardando Visitante</h3><div id="lista-portaria-visita-aguardando" class="list-container"></div></div>
+                <div class="card" style="border-top: none;"><h3 style="color: var(--visita-local); border-bottom: 2px solid var(--visita-local); padding-bottom: 10px;"><i class="ph ph-user-check"></i> Visitante no Local</h3><div id="lista-portaria-visita-local" class="list-container"></div></div>
+
                 <div class="card" style="border-top: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 2px solid var(--success); padding-bottom: 10px;">
                         <h3 class="text-success" style="margin: 0; border: none; padding: 0;"><i class="ph ph-check-circle"></i> Histórico de Hoje (Concluídos)</h3>
@@ -237,6 +274,7 @@
                         <div class="kpi-item falta"><span>Faltas</span><h3 id="kpi-hoje-falta">0</h3></div>
                         <div class="kpi-item folga"><span>Folgas</span><h3 id="kpi-hoje-folga">0</h3></div>
                         <div class="kpi-item ci"><span>C.I.s</span><h3 id="kpi-hoje-ci">0</h3></div>
+                        <div class="kpi-item visita"><span>Visitas</span><h3 id="kpi-hoje-visita">0</h3></div>
                     </div>
                 </div>
 
@@ -251,6 +289,7 @@
                         <div class="kpi-item falta"><span>Faltas</span><h3 id="kpi-mes-falta">0</h3></div>
                         <div class="kpi-item folga"><span>Folgas</span><h3 id="kpi-mes-folga">0</h3></div>
                         <div class="kpi-item ci"><span>C.I.s</span><h3 id="kpi-mes-ci">0</h3></div>
+                        <div class="kpi-item visita"><span>Visitas</span><h3 id="kpi-mes-visita">0</h3></div>
                     </div>
                 </div>
 
@@ -282,7 +321,6 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <h3><i class="ph ph-funnel"></i> Filtros de Relatórios</h3>
                     </div>
-                    
                     <div id="filtros-container">
                         <div class="filter-group">
                             <div class="input-group"><label>De (Data):</label><input type="date" id="filtro-data-inicio"></div>
@@ -297,6 +335,7 @@
                                     <option value="Falta">Lançamento de Falta</option>
                                     <option value="Folga">Lançamento de Folga</option>
                                     <option value="CI">C.I. Comunicação</option>
+                                    <option value="Visita">Agendamento de Visitas</option>
                                     <option value="faltou_entrada">Faltou - Liberação de Entrada</option>
                                     <option value="faltou_saida">Faltou - Liberação de Saída</option>
                                     <option value="ranking_saidas">Ranking Mais Saídas</option>
@@ -304,7 +343,7 @@
                                 </select>
                             </div>
                             <div class="input-group hidden" id="box-filtro-lider" style="grid-column: 1 / -1;"><label>Líder:</label><select id="filtro-lider-select"></select></div>
-                            <div class="input-group hidden" id="box-filtro-colab" style="grid-column: 1 / -1;"><label>Nome ou Matrícula:</label><input type="text" id="filtro-colab-input"></div>
+                            <div class="input-group hidden" id="box-filtro-colab" style="grid-column: 1 / -1;"><label>Nome ou Matrícula/CPF:</label><input type="text" id="filtro-colab-input"></div>
                             <div class="input-group hidden" id="box-filtro-motivo" style="grid-column: 1 / -1;"><label>Motivo Específico (Opcional):</label><select id="filtro-motivo-select"></select></div>
                         </div>
                         <button class="btn btn-primary btn-block mt-1" onclick="aplicarFiltrosRH()"><i class="ph ph-magnifying-glass"></i> Gerar Relatório</button>
