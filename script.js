@@ -286,7 +286,7 @@ document.getElementById('form-agendamento').addEventListener('submit', async (e)
 // 2. TELA LÍDER E NOVOS MÓDULOS
 // ==========================================
 function carregarSaudacaoLider() {
-    const frases = ["Um excelente dia de trabalho!", "Sua liderança faz a diferença hoje!", "A jornada para o sucesso começa com organização.", "Vamos para mais um dia produtivo!"];
+    const frases = ["Um excelente dia de trabalho!", "Sua liderança faz a diferença hoje!", "A jornada para o sucesso começa com organização.", "Vamos para mais um dia produtivo!","Seu trabalho e dedicação têm sido fundamentais para alcançarmos nossos objetivos.","A energia e o comprometimento de vocês fazem toda a diferença.","A verdadeira liderança inspira e transforma, despertando o melhor em cada um.","A liderança é a capacidade de traduzir visão em realidade."];
     const hora = new Date().getHours();
     const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
     document.getElementById('lider-greeting-name').innerHTML = `<strong>${saudacao}, ${usuarioLogado.nome.split(' ')[0]}!</strong>`;
