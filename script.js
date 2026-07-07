@@ -1,7 +1,7 @@
 // ==========================================
 // CONFIGURAÇÃO DA API E VARIÁVEIS GLOBAIS
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbygVyAKP3A4iIUJn3H7HfvYIjcOAokgY5Zbbkoon3VbbAmunWkRPLnuqiaG89OUr3GRRw/exec"; // <--- ATENÇÃO: COLE SUA NOVA URL AQUI
+const API_URL = "https://script.google.com/macros/s/AKfycbzoXv41yRgJEkYIAPRzDvRPp5aRh6PTj5TzbfaOTrKzT_yUwHn3xPtMB4F5TSlZS2wG9w/exec"; // <--- ATENÇÃO: COLE SUA NOVA URL AQUI
 let ultimoTotalPortaria = 0; 
 let intervaloPortaria = null; 
 let usuarioLogado = null;
@@ -302,12 +302,11 @@ async function iniciarLider() {
     if(document.getElementById('data-falta')) document.getElementById('data-falta').value = hoje;
     if(document.getElementById('data-ci')) document.getElementById('data-ci').value = hoje;
 
-    // TRAVA CRÍTICA NA FOLGA: Só permite dia de hoje pra frente
     if (!liderInicializado) {
         if(document.getElementById('data-folga')) {
             flatpickr("#data-folga", {
                 mode: "multiple", dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", locale: "pt", defaultDate: [hoje],
-                minDate: "today" // Impede datas retroativas
+                minDate: "today"
             });
         }
         const selMotivo = document.getElementById('motivo-saida');
@@ -416,9 +415,12 @@ window.filtrarHistoricoLider = async function() {
 }
 
 function verificaDuplicidade(matricula, data, tipoLancamento) {
+    // HACK CIRÚRGICO: C.I. não tem limite de lançamentos por dia!
+    if (tipoLancamento === 'CI') return false; 
+
     const dataVerificarISO = extrairDataISO(data); 
     const jaExiste = dadosGeraisRH.some(registro => {
-        if(registro.Status === 'Excluído') return false; // Se foi excluído, pode lançar de novo
+        if(registro.Status === 'Excluído') return false; 
         const dataRegistroISO = extrairDataISO(registro.Previsao_Saida || registro.Data_Hora_Pedido);
         return (String(registro.Matricula) === String(matricula) && dataRegistroISO === dataVerificarISO && registro.Motivo === tipoLancamento);
     });
@@ -428,10 +430,8 @@ function verificaDuplicidade(matricula, data, tipoLancamento) {
 function configurarFormularioLider(idForm, tipoLancamento) {
     const form = document.getElementById(idForm);
     if (!form) return;
-
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
         const sufixo = idForm.split('-')[1]; 
         const matRaw = document.getElementById(`mat-${sufixo}`).value;
         const dataInputRaw = document.getElementById(`data-${sufixo}`).value;
@@ -446,7 +446,6 @@ function configurarFormularioLider(idForm, tipoLancamento) {
         const btn = form.querySelector('button[type="submit"]');
         const txtOrg = btn.innerHTML; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; btn.disabled = true;
 
-        // ESTRUTURAÇÃO CORRETA DA OBSERVAÇÃO
         let observacao = '';
         if (sufixo === 'falta') observacao = document.getElementById('obs-falta').value;
         else if (sufixo === 'ci') observacao = document.getElementById('assunto-ci').value;
@@ -493,9 +492,6 @@ configurarFormularioLider('form-falta', 'Falta');
 configurarFormularioLider('form-folga', 'Folga');
 configurarFormularioLider('form-ci', 'CI');
 
-// ------------------------------------------
-// FORMULÁRIO ORIGINAL DE ENTRADA E SAÍDA
-// ------------------------------------------
 window.iniciarFormulario = function(tipo) {
     direcaoAtual = tipo;
     window.resetarTelasLider();
@@ -537,7 +533,7 @@ window.buscarColaborador = async function(idInputMatricula, idInputNome) {
     }
     inputNome.value = nomesValidos.join(' | ');
     if(erros.length > 0) {
-        showToast(`Matrículas com erro: ${erros.join(', ')}`, 'erro');
+        showToast(`Matrículas não encontradas: ${erros.join(', ')}`, 'erro');
         if(aviso) { aviso.textContent = "Erro em algumas matrículas."; aviso.classList.replace('text-light', 'text-danger'); }
     } else { if(aviso) aviso.classList.add('hidden'); }
 }
@@ -747,7 +743,6 @@ function carregarNotificacoesHoje(dados) {
     const hojeISO = new Date().toISOString().split('T')[0]; 
     let saidas = [], entradas = [], faltas = [], folgas = [], cis = [], visitas = [];
 
-    // Ignora os excluídos lógicos no painel
     dados.filter(d => d.Status !== 'Excluído').forEach(d => {
         const d1 = extrairDataISO(d.Data_Hora_Pedido); const d2 = extrairDataISO(d.Previsao_Saida);
         const d3 = extrairDataISO(d.Data_Hora_Saida); const d4 = extrairDataISO(d.Data); 
@@ -792,7 +787,6 @@ function gerarKPIsERanking(dados) {
     let kpi = { hoje: { saida: 0, entrada: 0, falta: 0, folga: 0, ci: 0, visita: 0 }, mes: { saida: 0, entrada: 0, falta: 0, folga: 0, ci: 0, visita: 0 } };
     let rankingSaidas = {}; let rankingEntradas = {};
 
-    // Ignora excluídos nos KPIs e Rankings
     dados.filter(d => d.Status !== 'Excluído').forEach(d => {
         const dataPedidoISO = extrairDataISO(d.Data_Hora_Pedido || d.Data); const isMes = dataPedidoISO.startsWith(mesAtualISO);
         const d1 = extrairDataISO(d.Data_Hora_Pedido); const d2 = extrairDataISO(d.Previsao_Saida); const d3 = extrairDataISO(d.Data_Hora_Saida); const d4 = extrairDataISO(d.Data);
@@ -864,7 +858,6 @@ window.aplicarFiltrosRH = function() {
 
     document.getElementById('card-dados-relatorio').classList.remove('hidden');
 
-    // Módulo de Auditoria: Vendo Folgas Excluídas
     if (tipo === 'Folgas_Excluidas') {
         let dadosExcluidos = dadosGeraisRH.filter(d => d.Status === 'Excluído' && d.Motivo === 'Folga');
         if (dtIn || dtFim) {
@@ -882,7 +875,6 @@ window.aplicarFiltrosRH = function() {
         return;
     }
 
-    // Todos os outros relatórios ignoram dados Excluídos
     let dadosFiltrados = dadosGeraisRH.filter(d => {
         if (d.Status === 'Excluído') return false; 
         let ok = true;
@@ -917,7 +909,6 @@ window.aplicarFiltrosRH = function() {
     showToast(`${dadosFiltrados.length} registros encontrados.`, 'info');
 }
 
-// O NOVO COMANDO: EXCLUIR FOLGA
 window.excluirRegistro = async function(id, btn) {
     if(!confirm("Tem certeza que deseja excluir esta folga do relatório?")) return;
     
@@ -935,8 +926,6 @@ window.excluirRegistro = async function(id, btn) {
             showToast("Folga excluída do relatório!", "sucesso");
             const item = dadosGeraisRH.find(x => String(x.ID) === String(id)); 
             if(item) item.Status = 'Excluído';
-            
-            // Remove a linha da tabela na hora
             const tr = btn.closest('tr');
             if(tr) tr.remove();
         } else { showToast(data.mensagem, "erro"); btn.innerHTML = txtOrg; btn.disabled = false; }
@@ -957,12 +946,9 @@ window.marcarComoLancado = async function(id, btn) {
         if(data.status === 'sucesso') {
             showToast("Marcado como lançado no Fortes!", "sucesso");
             const parent = btn.parentElement;
-            
-            // Deixa o botão de lixeira caso a pessoa tenha clicado Fortes, mas mude de ideia depois.
             const btnLixo = parent.querySelector('.btn-danger');
             parent.innerHTML = `<span class="status-badge ok" style="background:var(--success); color:white;"><i class="ph ph-check-circle"></i> Fortes OK</span>`;
             if(btnLixo) parent.appendChild(btnLixo);
-            
             const item = dadosGeraisRH.find(x => String(x.ID) === String(id)); if(item) item.Status = 'Lançado no Fortes';
         } else { showToast(data.mensagem, "erro"); btn.innerHTML = txtOrg; btn.disabled = false; }
     } catch(e) { showToast("Erro de internet ou URL bloqueada.", "erro"); btn.innerHTML = txtOrg; btn.disabled = false; }
@@ -996,7 +982,6 @@ function renderizarTabelaGeralRH(dados) {
             } else {
                 statusExibicao = `<button class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; border-radius:4px;" onclick="marcarComoLancado('${d.ID}', this)"><i class="ph ph-upload-simple"></i> Lançar Fortes</button>`;
             }
-            // ADICIONA LIXEIRA APENAS SE FOR FOLGA
             if (d.Motivo === 'Folga') {
                 statusExibicao += ` <button class="btn btn-danger" style="padding: 0.3rem 0.5rem; font-size: 0.75rem; border-radius:4px; margin-left: 5px;" onclick="excluirRegistro('${d.ID}', this)" title="Excluir Folga"><i class="ph ph-trash"></i></button>`;
             }
