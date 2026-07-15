@@ -1,13 +1,14 @@
 // ==========================================
 // CONFIGURAÇÃO DA API E VARIÁVEIS GLOBAIS
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbzoXv41yRgJEkYIAPRzDvRPp5aRh6PTj5TzbfaOTrKzT_yUwHn3xPtMB4F5TSlZS2wG9w/exec"; // <--- ATENÇÃO: COLE SUA NOVA URL AQUI
+const API_URL = "https://script.google.com/macros/s/AKfycbzxKceeeUgSt56bh-xox8ikoJYFF8HtcAffJAew9zoUiMjMC9MLJatur_Ew5jmsZmvkgQ/exec"; // <--- ATENÇÃO: COLE SUA NOVA URL AQUI
 let ultimoTotalPortaria = 0; 
 let intervaloPortaria = null; 
 let usuarioLogado = null;
 let dadosGeraisRH = []; 
 let direcaoAtual = ""; 
 let liderInicializado = false;
+let resolveModal; // Blindagem do Modal
 
 // ==========================================
 // UTILIDADES E MOTOR ORM
@@ -283,10 +284,10 @@ document.getElementById('form-agendamento').addEventListener('submit', async (e)
 });
 
 // ==========================================
-// 2. TELA LÍDER E NOVOS MÓDULOS
+// 2. TELA LÍDER E FORMULÁRIOS
 // ==========================================
 function carregarSaudacaoLider() {
-    const frases = ["Um excelente dia de trabalho!", "Sua liderança faz a diferença hoje!", "A jornada para o sucesso começa com organização.", "Vamos para mais um dia produtivo!","Seu trabalho e dedicação têm sido fundamentais para alcançarmos nossos objetivos.","A energia e o comprometimento de vocês fazem toda a diferença.","A verdadeira liderança inspira e transforma, despertando o melhor em cada um.","A liderança é a capacidade de traduzir visão em realidade."];
+    const frases = ["Um excelente dia de trabalho!", "Sua liderança faz a diferença hoje!", "A jornada para o sucesso começa com organização.", "Vamos para mais um dia produtivo!"];
     const hora = new Date().getHours();
     const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
     document.getElementById('lider-greeting-name').innerHTML = `<strong>${saudacao}, ${usuarioLogado.nome.split(' ')[0]}!</strong>`;
@@ -415,9 +416,7 @@ window.filtrarHistoricoLider = async function() {
 }
 
 function verificaDuplicidade(matricula, data, tipoLancamento) {
-    // HACK CIRÚRGICO: C.I. não tem limite de lançamentos por dia!
     if (tipoLancamento === 'CI') return false; 
-
     const dataVerificarISO = extrairDataISO(data); 
     const jaExiste = dadosGeraisRH.some(registro => {
         if(registro.Status === 'Excluído') return false; 
@@ -452,7 +451,7 @@ function configurarFormularioLider(idForm, tipoLancamento) {
         else if (sufixo === 'folga') {
             const tFolga = document.getElementById('tipo-folga').value;
             const oFolga = document.getElementById('obs-folga-extra').value;
-            observacao = oFolga ? `${tFolga} | Justificativa/Retroativo: ${oFolga}` : tFolga;
+            observacao = oFolga ? `${tFolga} | Justificativa: ${oFolga}` : tFolga;
         }
         
         let salvos = 0; let erros = 0;
@@ -462,7 +461,7 @@ function configurarFormularioLider(idForm, tipoLancamento) {
 
             for (const dataAtual of datasArray) {
                 if (verificaDuplicidade(matriculasArray[i], dataAtual, tipoLancamento)) {
-                    showToast(`Atenção: Já existe ${tipoLancamento} para a data ${formatarDataSimplesBR(dataAtual)}!`, 'erro');
+                    showToast(`Atenção: Já existe ${tipoLancamento} para ${matAtual} no dia ${formatarDataSimplesBR(dataAtual)}!`, 'erro');
                     erros++; continue; 
                 }
                 
